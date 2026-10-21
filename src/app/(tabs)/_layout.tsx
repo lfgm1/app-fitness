@@ -18,8 +18,9 @@ function SettingsButton() {
 }
 
 // No navegador (site / app instalado pela tela de início) a barra de abas tem altura fixa e
-// cortava o nome das abas; aqui ela ganha altura própria. No app nativo a navegação calcula sozinha.
-const webTabBar = Platform.OS === 'web' ? { height: 64, paddingTop: 6, paddingBottom: 8 } : null;
+// cortava o nome das abas (ícone 28 + nome 16 + margens 10 = 54 de espaço útil); aqui ela ganha
+// altura própria. No app nativo a navegação calcula sozinha.
+const webTabBar = Platform.OS === 'web' ? { height: 64, paddingTop: 2, paddingBottom: 4 } : null;
 
 export default function TabsLayout() {
   return (

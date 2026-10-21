@@ -76,9 +76,22 @@ export function shiftDays(iso: string, delta: number) {
 }
 
 /** Pergunta de confirmação que funciona no celular e no navegador. */
+/** Uma janela de confirmação ou aviso do próprio app (veja components/DialogHost). */
+export type DialogRequest = { title: string; message: string; confirmLabel?: string; onConfirm?: () => void };
+
+let showDialog: ((request: DialogRequest) => void) | null = null;
+
+/** O DialogHost se registra aqui para mostrar as janelas no navegador. */
+export function setDialogHandler(handler: ((request: DialogRequest) => void) | null) {
+  showDialog = handler;
+}
+
+// No navegador, as janelas do próprio navegador (window.confirm/alert) podem ser bloqueadas, principalmente
+// no app instalado no iPhone. Por isso, no site, as confirmações usam a janela do próprio app.
 export function confirmAction(title: string, message: string, confirmLabel: string, onConfirm: () => void) {
   if (Platform.OS === 'web') {
-    if (window.confirm(`${title}\n\n${message}`)) onConfirm();
+    if (showDialog) showDialog({ title, message, confirmLabel, onConfirm });
+    else if (window.confirm(`${title}\n\n${message}`)) onConfirm();
     return;
   }
   Alert.alert(title, message, [
@@ -88,8 +101,9 @@ export function confirmAction(title: string, message: string, confirmLabel: stri
 }
 
 export function notify(title: string, message: string) {
-  if (Platform.OS === 'web') window.alert(`${title}\n\n${message}`);
-  else Alert.alert(title, message);
+  if (Platform.OS !== 'web') Alert.alert(title, message);
+  else if (showDialog) showDialog({ title, message });
+  else window.alert(`${title}\n\n${message}`);
 }
 
 /** Formata enquanto a pessoa digita: "15031995" -> "15/03/1995". */

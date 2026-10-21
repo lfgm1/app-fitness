@@ -1,11 +1,17 @@
 // Fases do Frank, o mascote: ele evolui conforme o número de treinos registrados.
+// No começo as fases vêm rápido (o primeiro treino já "choca o ovo") para a pessoa pegar o hábito.
 
-export type FrankPhase = 'frango' | 'marombeiro' | 'monstro';
+export type FrankPhase = 'ovo' | 'pintinho' | 'frango' | 'rato' | 'gymbro' | 'shape' | 'gigachad' | 'aura';
 
 export const FRANK_PHASES: { phase: FrankPhase; name: string; from: number }[] = [
-  { phase: 'frango', name: 'Frango', from: 0 },
-  { phase: 'marombeiro', name: 'Marombeiro', from: 10 },
-  { phase: 'monstro', name: 'Monstro', from: 50 },
+  { phase: 'ovo', name: 'Ovo', from: 0 },
+  { phase: 'pintinho', name: 'Pintinho', from: 1 },
+  { phase: 'frango', name: 'Frango', from: 5 },
+  { phase: 'rato', name: 'Rato de academia', from: 15 },
+  { phase: 'gymbro', name: 'Gymbro', from: 30 },
+  { phase: 'shape', name: 'Shape inexplicável', from: 60 },
+  { phase: 'gigachad', name: 'Gigachad', from: 100 },
+  { phase: 'aura', name: 'Aura infinita', from: 200 },
 ];
 
 /** Fase atual, a próxima e quanto falta para chegar nela. */

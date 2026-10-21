@@ -1,10 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { EvolutionModal } from '@/components/EvolutionModal';
 import { ExerciseImage } from '@/components/ExerciseImage';
 import { RecordBurst } from '@/components/RecordBurst';
-import { Frank, FrankHead } from '@/components/Frank';
+import { FrankHead } from '@/components/Frank';
 import { Button, Card, EmptyState, PRBadge, StatusBadge } from '@/components/ui';
 import { useStore } from '@/data/store';
 import { confirmAction, formatDateLong } from '@/lib/format';
@@ -19,12 +21,13 @@ export default function SessionScreen() {
   const { sessions, getExercise, deleteSession } = useStore();
   const units = useUnits();
   const session = sessions.find((s) => s.id === id);
+  const [evolutionSeen, setEvolutionSeen] = useState(false);
 
   if (!session) {
     return <EmptyState icon="alert-circle-outline" title="Registro não encontrado" text="Ele pode ter sido excluído." />;
   }
 
-  // O Frank muda de fase quando o total de treinos cruza 10 e 50.
+  // O Frank muda de fase quando o total de treinos cruza o início de uma fase (veja lib/frank).
   const phaseNow = frankProgress(sessions.length).current;
   const newPhase = phaseNow.phase !== frankProgress(sessions.length - 1).current.phase ? phaseNow : null;
 
@@ -66,12 +69,12 @@ export default function SessionScreen() {
         }}
       />
       {novo === '1' && newPhase && (
-        <Card style={styles.phaseCard}>
-          <Frank phase={newPhase.phase} size={130} entrance />
-          <Text style={styles.phaseLabel}>Nova fase do Frank</Text>
-          <Text style={styles.phaseName}>{newPhase.name}</Text>
-          <Text style={styles.bannerText}>{sessions.length} treinos registrados</Text>
-        </Card>
+        <EvolutionModal
+          visible={!evolutionSeen}
+          phase={newPhase.phase}
+          workoutCount={sessions.length}
+          onClose={() => setEvolutionSeen(true)}
+        />
       )}
 
       {novo === '1' && (
@@ -149,9 +152,6 @@ export default function SessionScreen() {
 
 const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 10 },
-  phaseCard: { alignItems: 'center', gap: 4, paddingVertical: 20, borderColor: colors.crista },
-  phaseLabel: { color: colors.textMuted, fontFamily: fonts.semibold, fontSize: 14, marginTop: 6 },
-  phaseName: { color: colors.text, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4, fontSize: 35 },
   content: { padding: 16, gap: 12, paddingBottom: 40 },
   banner: { flexDirection: 'row', alignItems: 'center', gap: 14, borderColor: colors.crista },
   bannerTitle: { color: colors.text, fontSize: 23, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },

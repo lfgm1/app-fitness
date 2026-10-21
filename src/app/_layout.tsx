@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { DialogHost } from '@/components/DialogHost';
 import { LoginScreen } from '@/components/LoginScreen';
 import { ProfileForm } from '@/components/ProfileForm';
 import { AuthProvider, useAuth } from '@/data/auth';
@@ -91,6 +92,7 @@ export default function RootLayout() {
     <AuthProvider>
       <StatusBar style="light" />
       <AuthGate />
+      <DialogHost />
     </AuthProvider>
   );
 }

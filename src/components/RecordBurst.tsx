@@ -12,7 +12,7 @@ const SIZES = {
 };
 
 /** Pontos de uma estrela "explosão" dentro de uma elipse. */
-function burstPoints(width: number, height: number, spikes: number, pad: number) {
+export function burstPoints(width: number, height: number, spikes: number, pad: number) {
   const cx = width / 2;
   const cy = height / 2;
   const rx = width / 2 - pad;

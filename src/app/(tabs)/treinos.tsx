@@ -1,10 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ProgressView } from '@/components/ProgressView';
 import { Button, Card, EmptyState, Segmented, SectionTitle } from '@/components/ui';
+import { WorkoutsEmptyArt } from '@/components/WorkoutsEmptyArt';
 import { useStore } from '@/data/store';
 import { formatShortDate } from '@/lib/format';
 import { colors, fonts } from '@/theme';
@@ -12,7 +13,14 @@ import { colors, fonts } from '@/theme';
 type Tab = 'treinos' | 'progresso';
 
 export default function WorkoutsScreen() {
-  const [tab, setTab] = useState<Tab>('treinos');
+  // A Início pode abrir esta aba direto no Progresso (link "+N conquistas na semana").
+  const { aba, v } = useLocalSearchParams<{ aba?: string; v?: string }>();
+  const [tab, setTab] = useState<Tab>(aba === 'progresso' ? 'progresso' : 'treinos');
+  const [lastLink, setLastLink] = useState(v);
+  if (v !== lastLink) {
+    setLastLink(v);
+    if (aba === 'progresso') setTab('progresso');
+  }
 
   return (
     <View style={styles.screen}>
@@ -45,7 +53,7 @@ function WorkoutList() {
 
       {workouts.length === 0 ? (
         <EmptyState
-          frank
+          illustration={<WorkoutsEmptyArt />}
           title="Nenhum treino ainda"
           text={'Crie seu primeiro treino, por exemplo "Peito", e escolha os exercícios dele.'}
         />

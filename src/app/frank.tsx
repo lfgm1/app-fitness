@@ -1,28 +1,27 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Frank } from '@/components/Frank';
-import { Card } from '@/components/ui';
+import { ShareSheet } from '@/components/ShareSheet';
+import { Button, Card } from '@/components/ui';
 import { useStore } from '@/data/store';
 import { FRANK_PHASES, frankProgress } from '@/lib/frank';
-import type { FrankPhase } from '@/lib/frank';
 import { colors, fonts } from '@/theme';
-
-const DESCRIPTIONS: Record<FrankPhase, string> = {
-  frango: 'Magrinho, suando com a barra vazia. Todo mundo começa aqui.',
-  marombeiro: 'Ganhou peito e confiança. Faixa na cabeça e haltere no alto.',
-  monstro: 'Peitoral largo, regata, corrente e óculos escuros. O topo da evolução.',
-};
 
 function rangeLabel(index: number) {
   const phase = FRANK_PHASES[index];
   const next = FRANK_PHASES[index + 1];
-  return next ? `${phase.from} a ${next.from - 1} treinos` : `${phase.from}+ treinos`;
+  if (!next) return `${phase.from}+ treinos`;
+  const last = next.from - 1;
+  if (last === phase.from) return `${phase.from} treino${phase.from === 1 ? '' : 's'}`;
+  return `${phase.from} a ${last} treinos`;
 }
 
 /** Todas as fases do Frank: as já alcançadas, a atual e as que ainda faltam. */
 export default function FrankEvolutionsScreen() {
   const { sessions } = useStore();
+  const [sharing, setSharing] = useState(false);
   const count = sessions.length;
   const { current } = frankProgress(count);
   const currentIndex = FRANK_PHASES.findIndex((p) => p.phase === current.phase);
@@ -37,6 +36,8 @@ export default function FrankEvolutionsScreen() {
         registrado{count === 1 ? '' : 's'}.
       </Text>
 
+      <Button title="Compartilhar meu Frank" icon="share-social-outline" onPress={() => setSharing(true)} />
+
       {FRANK_PHASES.map((phase, index) => {
         const isCurrent = index === currentIndex;
         const locked = index > currentIndex;
@@ -44,7 +45,7 @@ export default function FrankEvolutionsScreen() {
         return (
           <Card key={phase.phase} style={[styles.card, isCurrent && styles.cardCurrent]}>
             <View style={[styles.art, locked && styles.artLocked]}>
-              <Frank phase={phase.phase} size={104} still={locked} />
+              <Frank phase={phase.phase} size={92} still={locked} />
               {locked && (
                 <View style={styles.lock}>
                   <Ionicons name="lock-closed" size={18} color={colors.text} />
@@ -54,7 +55,6 @@ export default function FrankEvolutionsScreen() {
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={styles.range}>{rangeLabel(index)}</Text>
               <Text style={[styles.name, locked && { color: colors.textMuted }]}>{phase.name}</Text>
-              <Text style={styles.description}>{DESCRIPTIONS[phase.phase]}</Text>
               {isCurrent && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>Você está aqui</Text>
@@ -69,6 +69,14 @@ export default function FrankEvolutionsScreen() {
           </Card>
         );
       })}
+
+      <ShareSheet
+        visible={sharing}
+        onClose={() => setSharing(false)}
+        phase={current.phase}
+        workoutCount={count}
+        variant="atual"
+      />
     </ScrollView>
   );
 }
@@ -79,11 +87,11 @@ const styles = StyleSheet.create({
   count: { color: colors.primary, fontFamily: fonts.bold },
   card: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   cardCurrent: { borderColor: colors.primary },
-  art: { width: 104, alignItems: 'center' },
+  art: { width: 92, alignItems: 'center' },
   artLocked: { opacity: 0.3 },
   lock: {
     position: 'absolute',
-    top: '42%',
+    top: '40%',
     width: 34,
     height: 34,
     borderRadius: 17,
@@ -92,8 +100,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   range: { color: colors.textMuted, fontFamily: fonts.semibold, fontSize: 14 },
-  name: { color: colors.text, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4, fontSize: 30 },
-  description: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
+  name: { color: colors.text, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4, fontSize: 28 },
   badge: {
     alignSelf: 'flex-start',
     backgroundColor: colors.primary,

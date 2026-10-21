@@ -36,19 +36,18 @@
         flex: 1;
       }
 
-      /* App instalado na tela de início (iPhone): a navegação não recebe as "safe areas" no navegador,
-         então reservamos aqui o espaço do relógio/bateria (topo) e da barrinha de gestos (embaixo).
-         O app fica preso às bordas da tela (position: fixed), porque 100% e 100vh têm alturas erradas
-         nesse modo do iPhone e cortavam a barra de abas. O espaço da barrinha de gestos fica na cor
-         da barra de abas (#181A1F), para parecer uma barra só. */
+      /* App instalado na tela de início (iPhone/Android): a navegação não recebe as "safe areas" no
+         navegador, então reservamos aqui o espaço do relógio/bateria (topo) e da barrinha de gestos
+         (embaixo). No iPhone, em tela cheia, a altura da página vem descontada da barra de status;
+         somamos ela de volta (onde não existe, env() dá 0 e a altura fica 100%). O espaço da barrinha
+         de gestos fica na cor da barra de abas (#181A1F), para parecer uma barra só. */
       @media (display-mode: standalone) {
         #root {
           position: fixed;
           top: 0;
-          right: 0;
-          bottom: 0;
           left: 0;
-          height: auto;
+          right: 0;
+          height: calc(100% + env(safe-area-inset-top));
           box-sizing: border-box;
           padding-top: env(safe-area-inset-top);
           /* Só parte da área da barrinha de gestos: a barra de abas fica mais perto da borda, mas sem

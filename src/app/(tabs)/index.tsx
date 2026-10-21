@@ -5,7 +5,9 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ExerciseImage } from '@/components/ExerciseImage';
 import { Frank } from '@/components/Frank';
+import { StartLineArt } from '@/components/StartLineArt';
 import { Button, Card, PRBadge, SectionTitle, StatusBadge } from '@/components/ui';
+import { isTimedExercise } from '@/data/exercises';
 import { useProfile } from '@/data/profile';
 import { useStore } from '@/data/store';
 import type { Workout } from '@/data/store';
@@ -13,12 +15,19 @@ import { frankProgress } from '@/lib/frank';
 import { formatShortDate } from '@/lib/format';
 import { exerciseHistory } from '@/lib/progress';
 import { useUnits } from '@/lib/units';
-import { colors, fonts } from '@/theme';
+import { colors, fonts, hardShadow } from '@/theme';
 
 const WEEKDAY_LETTERS = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 const WEEKDAYS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+
+// Cada toque no link manda um número novo, para a aba Treinos trocar para Progresso mesmo se já estiver aberta.
+let progressLinkCount = 0;
+function openProgress() {
+  progressLinkCount += 1;
+  router.push({ pathname: '/treinos', params: { aba: 'progresso', v: String(progressLinkCount) } });
+}
 
 function greeting(hour: number) {
   if (hour < 12) return 'Bom dia';
@@ -70,17 +79,19 @@ export default function HomeScreen() {
   const weekCount = sessions.filter((s) => new Date(s.date) >= weekStart).length;
   const todayIndex = (now.getDay() + 6) % 7;
 
-  // Progressões dos últimos 7 dias.
+  // Conquistas dos últimos 7 dias. A primeira é o destaque: recorde, depois carga, depois micro.
   const since = new Date(now.getTime() - SEVEN_DAYS).toISOString();
   const exerciseIds = [...new Set(sessions.flatMap((s) => s.exercises.map((e) => e.exerciseId)))];
+  const rank = (a: { isPR: boolean; status: string }) => (a.isPR ? 2 : a.status === 'carga' ? 1 : 0);
   const achievements = exerciseIds
     .flatMap((id) =>
       exerciseHistory(sessions, id)
         .filter((h) => h.date >= since && (h.status === 'carga' || h.status === 'micro'))
         .map((h) => ({ ...h, exerciseId: id }))
     )
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 3);
+    .sort((a, b) => rank(b) - rank(a) || b.date.localeCompare(a.date));
+  const highlight = achievements[0];
+  const others = achievements.length - 1;
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -95,7 +106,7 @@ export default function HomeScreen() {
 
       {workouts.length === 0 ? (
         <Card style={styles.welcome}>
-          <Frank phase="frango" size={96} />
+          <StartLineArt width={220} />
           <Text style={styles.welcomeTitle}>Vamos começar?</Text>
           <Text style={styles.welcomeText}>
             Monte seu primeiro treino, por exemplo “Peito”, escolhendo os exercícios. Depois é só registrar as cargas
@@ -184,27 +195,38 @@ export default function HomeScreen() {
             </View>
           </Card>
 
-          {achievements.length > 0 && (
+          {highlight && (
             <>
-              <SectionTitle>Conquistas recentes</SectionTitle>
-              {achievements.map((a) => (
-                <Pressable
-                  key={a.sessionId + a.exerciseId}
-                  onPress={() => router.push({ pathname: '/exercicio/[id]', params: { id: a.exerciseId } })}>
-                  <Card style={styles.achievement}>
-                    <ExerciseImage exerciseId={a.exerciseId} size={44} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.achievementName} numberOfLines={1}>
-                        {getExercise(a.exerciseId)?.name ?? 'Exercício'}
-                      </Text>
-                      <Text style={styles.cardMeta}>
-                        {units.set(a.best)} · {formatShortDate(a.date)}
-                      </Text>
+              <SectionTitle>Destaque da semana</SectionTitle>
+              <Pressable
+                onPress={() => router.push({ pathname: '/exercicio/[id]', params: { id: highlight.exerciseId } })}>
+                <Card style={[styles.weekHighlight, highlight.isPR && styles.weekHighlightRecord]}>
+                  <ExerciseImage exerciseId={highlight.exerciseId} size={56} />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <View style={styles.weekHighlightTop}>
+                      <Text style={styles.cardLabel}>Melhor da semana</Text>
+                      {highlight.isPR ? (
+                        <PRBadge />
+                      ) : (
+                        <StatusBadge status={highlight.status} timed={isTimedExercise(highlight.exerciseId)} />
+                      )}
                     </View>
-                    {a.isPR ? <PRBadge /> : <StatusBadge status={a.status} />}
-                  </Card>
+                    <Text style={styles.highlightName} numberOfLines={2}>
+                      {getExercise(highlight.exerciseId)?.name ?? 'Exercício'}
+                    </Text>
+                    <Text style={styles.cardMeta}>
+                      {units.set(highlight.best)} · {formatShortDate(highlight.date)}
+                    </Text>
+                  </View>
+                </Card>
+              </Pressable>
+              {others > 0 && (
+                <Pressable onPress={openProgress} style={styles.moreLink} hitSlop={8}>
+                  <Text style={styles.moreText}>
+                    +{others} conquista{others === 1 ? '' : 's'} na semana ›
+                  </Text>
                 </Pressable>
-              ))}
+              )}
             </>
           )}
         </>
@@ -243,6 +265,10 @@ const styles = StyleSheet.create({
   dayDotDone: { backgroundColor: colors.primary },
   dayDotToday: { borderWidth: 2, borderColor: colors.textMuted },
   dayLetter: { color: colors.textFaint, fontSize: 12, fontFamily: fonts.mono },
-  achievement: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
-  achievementName: { color: colors.text, fontSize: 15, fontFamily: fonts.bold },
+  weekHighlight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  weekHighlightTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  weekHighlightRecord: { borderColor: colors.bico, ...hardShadow(colors.bico) },
+  highlightName: { color: colors.text, fontSize: 22, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  moreLink: { alignSelf: 'flex-end', marginTop: -2 },
+  moreText: { color: colors.primary, fontFamily: fonts.bold, fontSize: 14 },
 });
