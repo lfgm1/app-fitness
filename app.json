@@ -20,7 +20,14 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "name": "Gains Club",
+      "shortName": "Gains Club",
+      "lang": "pt-BR",
+      "description": "Registre seus treinos e acompanhe sua progressão de carga.",
+      "themeColor": "#0E0F12",
+      "backgroundColor": "#0E0F12"
     },
     "plugins": [
       "expo-router",
