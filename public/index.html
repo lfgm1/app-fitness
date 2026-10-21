@@ -38,16 +38,16 @@
 
       /* App instalado na tela de início (iPhone/Android): a navegação não recebe as "safe areas" no
          navegador, então reservamos aqui o espaço do relógio/bateria (topo) e da barrinha de gestos
-         (embaixo). No iPhone, em tela cheia, a altura da página vem descontada da barra de status;
-         somamos ela de volta (onde não existe, env() dá 0 e a altura fica 100%). O espaço da barrinha
-         de gestos fica na cor da barra de abas (#181A1F), para parecer uma barra só. */
+         (embaixo). A altura é 100vh (a tela inteira): no iPhone, em tela cheia, 100% e "preso às bordas"
+         ficam menores que a tela e sobrava uma faixa preta embaixo. O espaço da barrinha de gestos fica
+         na cor da barra de abas (#181A1F), para parecer uma barra só. */
       @media (display-mode: standalone) {
+        html,
+        body {
+          height: 100vh;
+        }
         #root {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: calc(100% + env(safe-area-inset-top));
+          height: 100vh;
           box-sizing: border-box;
           padding-top: env(safe-area-inset-top);
           /* Só parte da área da barrinha de gestos: a barra de abas fica mais perto da borda, mas sem
