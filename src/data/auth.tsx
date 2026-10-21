@@ -134,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
 
+      // Login com Google: pronto, mas sem botão no app por enquanto (falta publicar o app no Google Cloud).
       signInWithGoogle: async () => {
         if (Platform.OS === 'web') {
           const { error } = await supabase.auth.signInWithOAuth({

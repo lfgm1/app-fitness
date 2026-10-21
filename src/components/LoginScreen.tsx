@@ -6,22 +6,30 @@ import type { TextInputProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FrankHead } from '@/components/Frank';
+import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui';
 import { authErrorMessage, useAuth } from '@/data/auth';
 import { ageFrom, maskDate, parseBirthDate } from '@/lib/format';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { colors, fonts, outline, radius } from '@/theme';
+import { colors, fonts, hardShadow, outline, outlineColor, radius } from '@/theme';
 
 const MIN_AGE = 13;
 
 type Mode = 'entrar' | 'criar' | 'confirmar' | 'recuperar' | 'nova-senha';
 
-const TITLES: Record<Mode, { title: string; subtitle: string }> = {
-  entrar: { title: 'Entrar', subtitle: 'Seus treinos ficam salvos na sua conta, em qualquer celular.' },
-  criar: { title: 'Criar conta', subtitle: 'Leva menos de um minuto.' },
-  confirmar: { title: 'Confirme seu e-mail', subtitle: 'Enviamos um código para o seu e-mail.' },
-  recuperar: { title: 'Recuperar senha', subtitle: 'Vamos enviar um código para o seu e-mail.' },
-  'nova-senha': { title: 'Nova senha', subtitle: 'Digite o código que enviamos e escolha uma nova senha.' },
+// Título em estilo pôster: as duas primeiras linhas em letras grandes e a última numa etiqueta verde.
+const TITLES: Record<Mode, { poster: [string, string, string]; subtitle: string }> = {
+  entrar: {
+    poster: ['Bem-vindo', 'ao', 'clube'],
+    subtitle: 'Seus treinos ficam salvos na sua conta, em qualquer celular.',
+  },
+  criar: { poster: ['Entre', 'para o', 'clube'], subtitle: 'Leva menos de um minuto.' },
+  confirmar: { poster: ['Confirme', 'seu', 'e-mail'], subtitle: 'Enviamos um código para o seu e-mail.' },
+  recuperar: { poster: ['Esqueceu', 'a', 'senha?'], subtitle: 'Vamos enviar um código para o seu e-mail.' },
+  'nova-senha': {
+    poster: ['Crie uma', 'nova', 'senha'],
+    subtitle: 'Digite o código que enviamos e escolha uma nova senha.',
+  },
 };
 
 export function LoginScreen() {
@@ -111,15 +119,14 @@ export function LoginScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.brand}>
-          <View style={styles.logo}>
-            <FrankHead size={46} />
+        <Logo size={64} />
+        <View style={styles.poster} accessibilityRole="header">
+          <Text style={styles.posterText}>{TITLES[mode].poster[0]}</Text>
+          <Text style={styles.posterText}>{TITLES[mode].poster[1]}</Text>
+          <View style={styles.posterTag}>
+            <Text style={[styles.posterText, styles.posterTagText]}>{TITLES[mode].poster[2]}</Text>
           </View>
-          <Text style={styles.brandName}>
-            Gains <Text style={{ color: colors.primary }}>Club</Text>
-          </Text>
         </View>
-        <Text style={styles.title}>{TITLES[mode].title}</Text>
         <Text style={styles.subtitle}>
           {TITLES[mode].subtitle}
           {(mode === 'confirmar' || mode === 'nova-senha') && email ? `\n${email.trim()}` : ''}
@@ -134,146 +141,139 @@ export function LoginScreen() {
           </View>
         )}
 
-        <View style={styles.form}>
-          {mode === 'criar' && (
-            <>
+        {/* Formulário num card, com o Frank espiando por cima */}
+        <View style={styles.formWrap}>
+          <View style={styles.peek}>
+            <FrankHead size={64} />
+          </View>
+          <View style={styles.form}>
+            {mode === 'criar' && (
+              <>
+                <Field
+                  icon="person-outline"
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Nome"
+                  autoCapitalize="words"
+                  autoComplete="name"
+                  textContentType="name"
+                  maxLength={100}
+                />
+                <Field
+                  icon="calendar-outline"
+                  value={birth}
+                  onChangeText={(v) => setBirth(maskDate(v))}
+                  placeholder="Data de nascimento (DD/MM/AAAA)"
+                  keyboardType="number-pad"
+                  autoComplete="birthdate-full"
+                  maxLength={10}
+                />
+                {birthError && <Text style={styles.fieldError}>{birthError}</Text>}
+              </>
+            )}
+
+            {mode !== 'confirmar' && mode !== 'nova-senha' && (
               <Field
-                icon="person-outline"
-                value={name}
-                onChangeText={setName}
-                placeholder="Nome"
-                autoCapitalize="words"
-                autoComplete="name"
-                textContentType="name"
-                maxLength={100}
+                icon="mail-outline"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="E-mail"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                textContentType="emailAddress"
               />
+            )}
+
+            {(mode === 'confirmar' || mode === 'nova-senha') && (
               <Field
-                icon="calendar-outline"
-                value={birth}
-                onChangeText={(v) => setBirth(maskDate(v))}
-                placeholder="Data de nascimento (DD/MM/AAAA)"
+                icon="keypad-outline"
+                value={code}
+                onChangeText={(v) => setCode(v.replace(/\D/g, ''))}
+                placeholder="Código do e-mail"
                 keyboardType="number-pad"
-                autoComplete="birthdate-full"
+                autoComplete="one-time-code"
+                textContentType="oneTimeCode"
                 maxLength={10}
               />
-              {birthError && <Text style={styles.fieldError}>{birthError}</Text>}
-            </>
-          )}
+            )}
 
-          {mode !== 'confirmar' && mode !== 'nova-senha' && (
-            <Field
-              icon="mail-outline"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="E-mail"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              textContentType="emailAddress"
-            />
-          )}
+            {(mode === 'entrar' || mode === 'criar' || mode === 'nova-senha') && (
+              <Field
+                icon="lock-closed-outline"
+                value={password}
+                onChangeText={setPassword}
+                placeholder={mode === 'nova-senha' ? 'Nova senha (mín. 6 caracteres)' : 'Senha (mín. 6 caracteres)'}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoComplete={mode === 'entrar' ? 'current-password' : 'new-password'}
+                textContentType={mode === 'entrar' ? 'password' : 'newPassword'}
+                onSubmitEditing={canSubmit ? submit : undefined}
+                right={
+                  <Pressable onPress={() => setShowPassword((s) => !s)} hitSlop={10}>
+                    <Ionicons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color={colors.textMuted}
+                    />
+                  </Pressable>
+                }
+              />
+            )}
 
-          {(mode === 'confirmar' || mode === 'nova-senha') && (
-            <Field
-              icon="keypad-outline"
-              value={code}
-              onChangeText={(v) => setCode(v.replace(/\D/g, ''))}
-              placeholder="Código do e-mail"
-              keyboardType="number-pad"
-              autoComplete="one-time-code"
-              textContentType="oneTimeCode"
-              maxLength={10}
-            />
-          )}
+            {error && <Text style={styles.error}>{error}</Text>}
+            {info && <Text style={styles.info}>{info}</Text>}
 
-          {(mode === 'entrar' || mode === 'criar' || mode === 'nova-senha') && (
-            <Field
-              icon="lock-closed-outline"
-              value={password}
-              onChangeText={setPassword}
-              placeholder={mode === 'nova-senha' ? 'Nova senha (mín. 6 caracteres)' : 'Senha (mín. 6 caracteres)'}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoComplete={mode === 'entrar' ? 'current-password' : 'new-password'}
-              textContentType={mode === 'entrar' ? 'password' : 'newPassword'}
-              onSubmitEditing={canSubmit ? submit : undefined}
-              right={
-                <Pressable onPress={() => setShowPassword((s) => !s)} hitSlop={10}>
-                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textMuted} />
-                </Pressable>
-              }
-            />
-          )}
+            <Button title={busy ? 'Aguarde...' : submitLabel} onPress={submit} disabled={!canSubmit} />
 
-          {error && <Text style={styles.error}>{error}</Text>}
-          {info && <Text style={styles.info}>{info}</Text>}
+            {mode === 'entrar' && (
+              <Pressable onPress={() => go('recuperar')} style={styles.linkWrap}>
+                <Text style={styles.link}>Esqueci minha senha</Text>
+              </Pressable>
+            )}
 
-          <Button title={busy ? 'Aguarde...' : submitLabel} onPress={submit} disabled={!canSubmit} />
+            {mode === 'confirmar' && (
+              <Pressable
+                style={styles.linkWrap}
+                disabled={busy}
+                onPress={() =>
+                  run(async () => {
+                    await auth.resendConfirmation(email);
+                    setInfo('Enviamos um novo código.');
+                  })
+                }>
+                <Text style={styles.link}>Reenviar código</Text>
+              </Pressable>
+            )}
 
-          {mode === 'entrar' && (
-            <Pressable onPress={() => go('recuperar')} style={styles.linkWrap}>
-              <Text style={styles.link}>Esqueci minha senha</Text>
-            </Pressable>
-          )}
+            {mode === 'confirmar' && (
+              <Pressable
+                style={styles.linkWrap}
+                onPress={() => {
+                  go('entrar');
+                  setInfo('E-mail confirmado? Agora é só entrar com sua senha.');
+                }}>
+                <Text style={styles.footerText}>
+                  Recebeu um link? Clique nele e depois <Text style={styles.link}>entre aqui</Text>
+                </Text>
+              </Pressable>
+            )}
 
-          {mode === 'confirmar' && (
-            <Pressable
-              style={styles.linkWrap}
-              disabled={busy}
-              onPress={() =>
-                run(async () => {
-                  await auth.resendConfirmation(email);
-                  setInfo('Enviamos um novo código.');
-                })
-              }>
-              <Text style={styles.link}>Reenviar código</Text>
-            </Pressable>
-          )}
-
-          {mode === 'confirmar' && (
-            <Pressable
-              style={styles.linkWrap}
-              onPress={() => {
-                go('entrar');
-                setInfo('E-mail confirmado? Agora é só entrar com sua senha.');
-              }}>
-              <Text style={styles.footerText}>
-                Recebeu um link? Clique nele e depois <Text style={styles.link}>entre aqui</Text>
-              </Text>
-            </Pressable>
-          )}
-
-          {mode === 'nova-senha' && (
-            <Pressable
-              style={styles.linkWrap}
-              disabled={busy}
-              onPress={() =>
-                run(async () => {
-                  await auth.sendPasswordReset(email);
-                  setInfo('Enviamos um novo código.');
-                })
-              }>
-              <Text style={styles.link}>Reenviar código</Text>
-            </Pressable>
-          )}
+            {mode === 'nova-senha' && (
+              <Pressable
+                style={styles.linkWrap}
+                disabled={busy}
+                onPress={() =>
+                  run(async () => {
+                    await auth.sendPasswordReset(email);
+                    setInfo('Enviamos um novo código.');
+                  })
+                }>
+                <Text style={styles.link}>Reenviar código</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
-
-        {(mode === 'entrar' || mode === 'criar') && (
-          <>
-            <View style={styles.divider}>
-              <View style={styles.line} />
-              <Text style={styles.dividerText}>ou</Text>
-              <View style={styles.line} />
-            </View>
-            <Button
-              title="Continuar com Google"
-              icon="logo-google"
-              variant="secondary"
-              disabled={!isSupabaseConfigured || busy}
-              onPress={() => run(auth.signInWithGoogle)}
-            />
-          </>
-        )}
 
         <View style={styles.footer}>
           {mode === 'entrar' ? (
@@ -313,18 +313,25 @@ function Field({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { flexGrow: 1, justifyContent: 'center', padding: 24, maxWidth: 440, width: '100%', alignSelf: 'center' },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28 },
-  logo: {
-    width: 52,
-    height: 52,
-    borderRadius: 15,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  poster: { marginTop: 28, alignItems: 'flex-start' },
+  posterText: {
+    color: colors.pena,
+    fontSize: 56,
+    lineHeight: 54,
+    fontFamily: fonts.display,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
-  brandName: { color: colors.text, fontSize: 30, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
-  title: { color: colors.text, fontSize: 38, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
-  subtitle: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, marginTop: 6 },
+  posterTag: {
+    marginTop: 6,
+    paddingHorizontal: 8,
+    backgroundColor: colors.primary,
+    borderWidth: 3,
+    borderColor: outlineColor,
+    transform: [{ rotate: '-2deg' }],
+  },
+  posterTagText: { color: colors.primaryText },
+  subtitle: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, marginTop: 14 },
   warning: {
     flexDirection: 'row',
     gap: 8,
@@ -335,13 +342,23 @@ const styles = StyleSheet.create({
     borderColor: colors.danger,
   },
   warningText: { color: colors.text, fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, flex: 1 },
-  form: { gap: 12, marginTop: 28 },
+  formWrap: { marginTop: 56 },
+  // A cabeça do Frank fica atrás do card, só o topo aparece por cima da borda.
+  peek: { position: 'absolute', top: -44, right: 18 },
+  form: {
+    gap: 12,
+    padding: 16,
+    backgroundColor: colors.card,
+    borderRadius: radius + 4,
+    ...outline,
+    ...hardShadow(colors.primary),
+  },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 14,
-    backgroundColor: colors.card,
+    backgroundColor: colors.background,
     borderRadius: radius,
     ...outline,
   },
@@ -351,9 +368,6 @@ const styles = StyleSheet.create({
   info: { color: colors.primary, fontFamily: fonts.regular, fontSize: 14 },
   linkWrap: { alignSelf: 'center', paddingVertical: 6 },
   link: { color: colors.primary, fontFamily: fonts.bold, fontSize: 14 },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 20 },
-  line: { flex: 1, height: 1, backgroundColor: colors.border },
-  dividerText: { color: colors.textFaint, fontFamily: fonts.regular, fontSize: 13 },
   footer: { alignItems: 'center', marginTop: 28 },
   footerText: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14 },
 });

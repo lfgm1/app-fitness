@@ -208,3 +208,28 @@ $$;
 
 revoke execute on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
+
+-- ------------------------------------------------------------------
+-- Limpeza automática dos itens excluídos
+-- O app não apaga na hora: marca como "deleted" para os outros aparelhos ficarem sabendo
+-- da exclusão na sincronização. Depois de 30 dias, o banco apaga de vez, todo dia às 03:00
+-- (horário de Brasília). A função fica no schema "private", fora do alcance da API.
+-- ------------------------------------------------------------------
+create extension if not exists pg_cron;
+
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+
+create or replace function private.purge_deleted_records()
+returns void
+language sql
+set search_path = ''
+as $$
+  delete from public.sessions         where deleted and updated_at < now() - interval '30 days';
+  delete from public.workouts         where deleted and updated_at < now() - interval '30 days';
+  delete from public.custom_exercises where deleted and updated_at < now() - interval '30 days';
+$$;
+
+revoke all on function private.purge_deleted_records() from public, anon, authenticated;
+
+select cron.schedule('purge-deleted-records', '0 6 * * *', 'select private.purge_deleted_records()');

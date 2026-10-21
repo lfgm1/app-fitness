@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Código para redefinir sua senha</title>
+  </head>
+  <!-- E-mail de recuperação de senha. {{ .Token }} é o código que a pessoa digita no app. -->
+  <body style="margin: 0; padding: 0; background: #0e0f12">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #0e0f12">
+      <tr>
+        <td align="center" style="padding: 32px 16px">
+          <table
+            role="presentation"
+            width="100%"
+            cellpadding="0"
+            cellspacing="0"
+            style="max-width: 440px; font-family: Arial, Helvetica, sans-serif; color: #f4f1e8">
+            <tr>
+              <td style="padding-bottom: 24px; font-size: 26px; font-weight: 900; letter-spacing: 0.5px">
+                GAINS <span style="color: #c6f432">CLUB</span>
+              </td>
+            </tr>
+            <tr>
+              <td
+                style="
+                  background: #181a1f;
+                  border: 3px solid #f4f1e8;
+                  border-radius: 16px;
+                  padding: 28px 24px;
+                  box-shadow: 5px 5px 0 #c6f432;
+                ">
+                <p style="margin: 0 0 8px; font-size: 22px; font-weight: 900; text-transform: uppercase">
+                  Redefinir senha
+                </p>
+                <p style="margin: 0 0 24px; font-size: 15px; line-height: 22px; color: #9aa0ab">
+                  Digite este código no app para escolher uma nova senha:
+                </p>
+                <p
+                  style="
+                    margin: 0 0 24px;
+                    padding: 16px 0;
+                    background: #c6f432;
+                    border: 3px solid #f4f1e8;
+                    border-radius: 12px;
+                    text-align: center;
+                    font-family: 'Courier New', Courier, monospace;
+                    font-size: 34px;
+                    font-weight: 700;
+                    letter-spacing: 8px;
+                    color: #0e0f12;
+                  ">
+                  {{ .Token }}
+                </p>
+                <p style="margin: 0; font-size: 13px; line-height: 20px; color: #9aa0ab">
+                  O código vale por 1 hora. Se não foi você que pediu, pode ignorar este e-mail: sua senha continua a
+                  mesma.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-top: 20px; font-size: 12px; color: #646a75; text-align: center">
+                Gains Club · seus treinos, sua evolução
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
