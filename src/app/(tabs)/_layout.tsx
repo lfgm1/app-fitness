@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs, router } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Platform, Pressable } from 'react-native';
 
 import { Logo } from '@/components/Logo';
 import { colors, fonts, outlineColor, outlineWidth } from '@/theme';
@@ -17,6 +17,10 @@ function SettingsButton() {
   );
 }
 
+// No navegador (site / app instalado pela tela de início) a barra de abas tem altura fixa e
+// cortava o nome das abas; aqui ela ganha altura própria. No app nativo a navegação calcula sozinha.
+const webTabBar = Platform.OS === 'web' ? { height: 64, paddingTop: 6, paddingBottom: 8 } : null;
+
 export default function TabsLayout() {
   return (
     <Tabs
@@ -27,10 +31,15 @@ export default function TabsLayout() {
         headerShadowVisible: false,
         headerRight: () => <SettingsButton />,
         sceneStyle: { backgroundColor: colors.background },
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: outlineColor, borderTopWidth: outlineWidth },
+        tabBarStyle: {
+          backgroundColor: colors.card,
+          borderTopColor: outlineColor,
+          borderTopWidth: outlineWidth,
+          ...webTabBar,
+        },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textFaint,
-        tabBarLabelStyle: { fontFamily: fonts.semibold },
+        tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 12, lineHeight: 16 },
       }}>
       <Tabs.Screen
         name="index"

@@ -51,11 +51,13 @@
           height: auto;
           box-sizing: border-box;
           padding-top: env(safe-area-inset-top);
-          padding-bottom: env(safe-area-inset-bottom);
+          /* Só parte da área da barrinha de gestos: a barra de abas fica mais perto da borda, mas sem
+             ficar embaixo da barrinha. Em celulares sem barrinha de gestos, isso dá 0. */
+          padding-bottom: max(0px, calc(env(safe-area-inset-bottom) - 14px));
           background: linear-gradient(
             to top,
-            #181a1f env(safe-area-inset-bottom),
-            #0e0f12 env(safe-area-inset-bottom)
+            #181a1f max(0px, calc(env(safe-area-inset-bottom) - 14px)),
+            #0e0f12 max(0px, calc(env(safe-area-inset-bottom) - 14px))
           );
         }
       }
