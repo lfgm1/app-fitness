@@ -1,13 +1,37 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Button, Card, EmptyState, SectionTitle } from '@/components/ui';
+import { ProgressView } from '@/components/ProgressView';
+import { Button, Card, EmptyState, Segmented, SectionTitle } from '@/components/ui';
 import { useStore } from '@/data/store';
 import { formatShortDate } from '@/lib/format';
-import { colors } from '@/theme';
+import { colors, fonts } from '@/theme';
+
+type Tab = 'treinos' | 'progresso';
 
 export default function WorkoutsScreen() {
+  const [tab, setTab] = useState<Tab>('treinos');
+
+  return (
+    <View style={styles.screen}>
+      <View style={styles.tabs}>
+        <Segmented
+          options={[
+            { key: 'treinos', label: 'Treinos' },
+            { key: 'progresso', label: 'Progresso' },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+      </View>
+      {tab === 'treinos' ? <WorkoutList /> : <ProgressView />}
+    </View>
+  );
+}
+
+function WorkoutList() {
   const { workouts, sessions, drafts, getExercise } = useStore();
 
   function lastDone(workoutId: string) {
@@ -21,7 +45,7 @@ export default function WorkoutsScreen() {
 
       {workouts.length === 0 ? (
         <EmptyState
-          icon="barbell-outline"
+          frank
           title="Nenhum treino ainda"
           text={'Crie seu primeiro treino, por exemplo "Peito", e escolha os exercícios dele.'}
         />
@@ -68,10 +92,12 @@ export default function WorkoutsScreen() {
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  tabs: { paddingHorizontal: 16, paddingTop: 8 },
   content: { padding: 16, gap: 12 },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  name: { color: colors.text, fontSize: 20, fontWeight: '800' },
-  meta: { color: colors.textMuted, fontSize: 14, marginTop: 2 },
-  exercises: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
-  inProgress: { color: colors.primary, fontSize: 13, fontWeight: '700', marginTop: 4 },
+  name: { color: colors.text, fontSize: 25, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  meta: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, marginTop: 2 },
+  exercises: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
+  inProgress: { color: colors.primary, fontSize: 13, fontFamily: fonts.bold, marginTop: 4 },
 });

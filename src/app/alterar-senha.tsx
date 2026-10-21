@@ -6,7 +6,7 @@ import type { TextInputProps } from 'react-native';
 import { Button } from '@/components/ui';
 import { authErrorMessage, useAuth } from '@/data/auth';
 import { notify } from '@/lib/format';
-import { colors, radius } from '@/theme';
+import { colors, fonts, outline, radius } from '@/theme';
 
 const MIN_LENGTH = 6;
 
@@ -69,11 +69,10 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: colors.card,
     color: colors.text,
-    fontSize: 16,
+    fontFamily: fonts.regular, fontSize: 16,
     padding: 14,
     borderRadius: radius,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...outline,
   },
-  error: { color: colors.danger, fontSize: 14 },
+  error: { color: colors.danger, fontFamily: fonts.regular, fontSize: 14 },
 });

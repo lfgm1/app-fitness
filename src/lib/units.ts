@@ -4,7 +4,7 @@
 import { useProfile } from '@/data/profile';
 import type { WeightUnit } from '@/data/profile';
 import type { SetEntry } from '@/data/store';
-import { formatWeight } from '@/lib/format';
+import { formatDuration, formatWeight } from '@/lib/format';
 
 const KG_PER_LB = 0.45359237;
 
@@ -26,8 +26,15 @@ export function useUnits() {
   return {
     unit,
     weight,
-    /** "42,5kg × 8" ou "93,7lb × 8". */
-    set: (s: SetEntry) => `${weight(s.weight)}${unit} × ${s.reps}`,
+    /** "42,5kg × 8" ou "93,7lb × 8". Nos exercícios de tempo: "0:45". */
+    set: (s: SetEntry) => (s.seconds !== undefined ? formatDuration(s.seconds) : `${weight(s.weight)}${unit} × ${s.reps}`),
+    /** Diferença entre duas séries: "+2,5kg" ou, nos exercícios de tempo, "+15s". Vazio se não mudou. */
+    delta: (from: SetEntry, to: SetEntry) => {
+      const timed = to.seconds !== undefined;
+      const diff = timed ? (to.seconds ?? 0) - (from.seconds ?? 0) : to.weight - from.weight;
+      if (diff === 0) return '';
+      return `${diff > 0 ? '+' : '−'}${timed ? `${Math.abs(diff)}s` : `${weight(Math.abs(diff))}${unit}`}`;
+    },
     /** Valor digitado na unidade escolhida -> kg para salvar. */
     toKg: (value: number) => unitToKg(value, unit),
   };

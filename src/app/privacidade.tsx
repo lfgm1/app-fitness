@@ -1,6 +1,6 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/theme';
+import { colors, fonts } from '@/theme';
 
 const UPDATED_AT = '20 de outubro de 2026';
 
@@ -48,6 +48,9 @@ const SECTIONS: { title: string; paragraphs: string[] }[] = [
 export default function PrivacyPolicyScreen() {
   return (
     <ScrollView contentContainerStyle={styles.content}>
+      <Text style={styles.text}>
+        Esta política explica quais dados o Gains Club coleta, como eles são usados e quais são os seus direitos.
+      </Text>
       <Text style={styles.updated}>Última atualização: {UPDATED_AT}</Text>
       {SECTIONS.map((section) => (
         <View key={section.title} style={{ gap: 8 }}>
@@ -65,7 +68,7 @@ export default function PrivacyPolicyScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 20, paddingBottom: 40 },
-  updated: { color: colors.textFaint, fontSize: 13 },
-  title: { color: colors.text, fontSize: 17, fontWeight: '800' },
-  text: { color: colors.textMuted, fontSize: 15, lineHeight: 23 },
+  updated: { color: colors.textFaint, fontFamily: fonts.regular, fontSize: 13 },
+  title: { color: colors.text, fontSize: 21, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  text: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 23 },
 });

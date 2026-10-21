@@ -5,11 +5,12 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import type { TextInputProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FrankHead } from '@/components/Frank';
 import { Button } from '@/components/ui';
 import { authErrorMessage, useAuth } from '@/data/auth';
 import { ageFrom, maskDate, parseBirthDate } from '@/lib/format';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { colors, radius } from '@/theme';
+import { colors, fonts, outline, radius } from '@/theme';
 
 const MIN_AGE = 13;
 
@@ -110,8 +111,13 @@ export function LoginScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.logo}>
-          <Ionicons name="barbell" size={36} color={colors.primaryText} />
+        <View style={styles.brand}>
+          <View style={styles.logo}>
+            <FrankHead size={46} />
+          </View>
+          <Text style={styles.brandName}>
+            Gains <Text style={{ color: colors.primary }}>Club</Text>
+          </Text>
         </View>
         <Text style={styles.title}>{TITLES[mode].title}</Text>
         <Text style={styles.subtitle}>
@@ -307,27 +313,28 @@ function Field({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { flexGrow: 1, justifyContent: 'center', padding: 24, maxWidth: 440, width: '100%', alignSelf: 'center' },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28 },
   logo: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
+    width: 52,
+    height: 52,
+    borderRadius: 15,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
   },
-  title: { color: colors.text, fontSize: 30, fontWeight: '800' },
-  subtitle: { color: colors.textMuted, fontSize: 15, lineHeight: 22, marginTop: 6 },
+  brandName: { color: colors.text, fontSize: 30, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  title: { color: colors.text, fontSize: 38, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  subtitle: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, marginTop: 6 },
   warning: {
     flexDirection: 'row',
     gap: 8,
     marginTop: 20,
     padding: 12,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 2.5,
     borderColor: colors.danger,
   },
-  warningText: { color: colors.text, fontSize: 13, lineHeight: 19, flex: 1 },
+  warningText: { color: colors.text, fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, flex: 1 },
   form: { gap: 12, marginTop: 28 },
   field: {
     flexDirection: 'row',
@@ -336,18 +343,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     backgroundColor: colors.card,
     borderRadius: radius,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...outline,
   },
-  input: { flex: 1, minWidth: 0, color: colors.text, fontSize: 16, paddingVertical: 14 },
-  error: { color: colors.danger, fontSize: 14, lineHeight: 20 },
-  fieldError: { color: colors.danger, fontSize: 13, marginTop: -4, paddingHorizontal: 4 },
-  info: { color: colors.primary, fontSize: 14 },
+  input: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fonts.regular, fontSize: 16, paddingVertical: 14 },
+  error: { color: colors.danger, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
+  fieldError: { color: colors.danger, fontFamily: fonts.regular, fontSize: 13, marginTop: -4, paddingHorizontal: 4 },
+  info: { color: colors.primary, fontFamily: fonts.regular, fontSize: 14 },
   linkWrap: { alignSelf: 'center', paddingVertical: 6 },
-  link: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+  link: { color: colors.primary, fontFamily: fonts.bold, fontSize: 14 },
   divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 20 },
   line: { flex: 1, height: 1, backgroundColor: colors.border },
-  dividerText: { color: colors.textFaint, fontSize: 13 },
+  dividerText: { color: colors.textFaint, fontFamily: fonts.regular, fontSize: 13 },
   footer: { alignItems: 'center', marginTop: 28 },
-  footerText: { color: colors.textMuted, fontSize: 14 },
+  footerText: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14 },
 });

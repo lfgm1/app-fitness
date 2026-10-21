@@ -5,7 +5,7 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button, Card } from '@/components/ui';
 import { authErrorMessage, useAuth } from '@/data/auth';
 import { clearLocalData } from '@/data/store';
-import { colors, radius } from '@/theme';
+import { colors, fonts, outline, radius } from '@/theme';
 
 const CONFIRM_WORD = 'EXCLUIR';
 
@@ -72,18 +72,17 @@ export default function DeleteAccountScreen() {
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 14 },
   warning: { gap: 10, borderColor: colors.danger },
-  title: { color: colors.text, fontSize: 18, fontWeight: '800' },
-  text: { color: colors.textMuted, fontSize: 15, lineHeight: 22 },
-  label: { color: colors.text, fontSize: 15 },
-  word: { color: colors.danger, fontWeight: '800' },
+  title: { color: colors.text, fontSize: 23, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  text: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22 },
+  label: { color: colors.text, fontFamily: fonts.regular, fontSize: 15 },
+  word: { color: colors.danger, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
   input: {
     backgroundColor: colors.card,
     color: colors.text,
-    fontSize: 16,
+    fontFamily: fonts.regular, fontSize: 16,
     padding: 14,
     borderRadius: radius,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...outline,
   },
-  error: { color: colors.danger, fontSize: 14 },
+  error: { color: colors.danger, fontFamily: fonts.regular, fontSize: 14 },
 });

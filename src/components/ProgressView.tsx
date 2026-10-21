@@ -1,5 +1,5 @@
-// Aba Progresso: junta a evolução por exercício e o histórico de treinos,
-// alternando entre os dois com um seletor no topo para manter a tela limpa.
+// Progresso (exibido dentro da aba Treinos): evolução por exercício e histórico de treinos,
+// alternando entre os dois com um seletor pequeno para manter a tela limpa.
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
@@ -7,26 +7,28 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ExerciseImage } from '@/components/ExerciseImage';
-import { Card, EmptyState, StatusBadge } from '@/components/ui';
+import { ProgressEmptyArt } from '@/components/ProgressEmptyArt';
+import { Card, EmptyState, Segmented, StatusBadge } from '@/components/ui';
+import { isTimedExercise } from '@/data/exercises';
 import { useStore } from '@/data/store';
 import type { Session, Workout } from '@/data/store';
 import { confirmAction, formatDateLong, formatShortDate } from '@/lib/format';
 import { exerciseHistory } from '@/lib/progress';
 import { useUnits } from '@/lib/units';
-import { colors, statusColors } from '@/theme';
+import { colors, fonts, outlineColor, statusColors } from '@/theme';
 
 const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
 type View_ = 'exercicios' | 'historico';
 
-export default function ProgressScreen() {
+export function ProgressView() {
   const { sessions } = useStore();
   const [view, setView] = useState<View_>('exercicios');
 
   if (sessions.length === 0) {
     return (
       <EmptyState
-        icon="trending-up-outline"
+        illustration={<ProgressEmptyArt />}
         title="Sem dados ainda"
         text="Registre seus treinos e acompanhe aqui sua evolução e seu histórico."
       />
@@ -35,26 +37,20 @@ export default function ProgressScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.segmented}>
-        <Segment label="Exercícios" active={view === 'exercicios'} onPress={() => setView('exercicios')} />
-        <Segment label="Histórico" active={view === 'historico'} onPress={() => setView('historico')} />
-      </View>
+      <Segmented
+        small
+        options={[
+          { key: 'exercicios', label: 'Exercícios', icon: 'barbell-outline' },
+          { key: 'historico', label: 'Histórico', icon: 'calendar-outline' },
+        ]}
+        value={view}
+        onChange={setView}
+      />
       {view === 'exercicios' ? <ExercisesView /> : <HistoryView />}
     </ScrollView>
   );
 }
 
-function Segment({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="tab"
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={[styles.segment, active && styles.segmentActive]}>
-      <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text>
-    </Pressable>
-  );
-}
 
 const OLD_WORKOUTS = '__old';
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
@@ -170,7 +166,7 @@ function ExercisesView() {
                 const history = exerciseHistory(sessions, id);
                 const first = history[0];
                 const last = history.at(-1)!;
-                const diff = last.best.weight - first.best.weight;
+                const delta = units.delta(first.best, last.best);
                 return (
                   <Pressable
                     key={id}
@@ -181,10 +177,10 @@ function ExercisesView() {
                       <Text style={styles.name}>{getExercise(id)?.name ?? 'Exercício removido'}</Text>
                       <Text style={styles.meta}>
                         {units.set(last.best)}
-                        {diff !== 0 ? ` · ${diff > 0 ? '+' : ''}${units.weight(diff)}${units.unit} desde o início` : ''}
+                        {delta ? ` · ${delta} desde o início` : ''}
                       </Text>
                     </View>
-                    <StatusBadge status={last.status} />
+                    <StatusBadge status={last.status} timed={isTimedExercise(id)} />
                     <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
                   </Pressable>
                 );
@@ -242,12 +238,21 @@ function HistoryView() {
               </Text>
             </View>
             <Pressable
-              onPress={() => removeOne(session.id, session.workoutName, session.date)}
-              hitSlop={10}
-              accessibilityLabel={`Remover treino ${session.workoutName}`}>
-              <Ionicons name="trash-outline" size={20} color={colors.danger} />
+              style={styles.rowAction}
+              onPress={() =>
+                router.push({ pathname: '/registrar/[id]', params: { id: session.workoutId, sessao: session.id } })
+              }
+              hitSlop={6}
+              accessibilityLabel={`Editar treino ${session.workoutName}`}>
+              <Ionicons name="create-outline" size={18} color={colors.text} />
             </Pressable>
-            <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
+            <Pressable
+              style={styles.rowAction}
+              onPress={() => removeOne(session.id, session.workoutName, session.date)}
+              hitSlop={6}
+              accessibilityLabel={`Remover treino ${session.workoutName}`}>
+              <Ionicons name="trash-outline" size={18} color={colors.danger} />
+            </Pressable>
           </Card>
         </Pressable>
       ))}
@@ -256,10 +261,20 @@ function HistoryView() {
 }
 
 const styles = StyleSheet.create({
+  rowAction: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderWidth: 2,
+    borderColor: outlineColor,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   group: { padding: 0, overflow: 'hidden' },
   groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
-  groupName: { color: colors.text, fontSize: 18, fontWeight: '800' },
-  groupUps: { color: statusColors.carga, fontSize: 13, fontWeight: '700', marginTop: 2 },
+  groupName: { color: colors.text, fontSize: 23, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  groupUps: { color: statusColors.carga, fontSize: 13, fontFamily: fonts.bold, marginTop: 2 },
   exerciseRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -270,23 +285,10 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   historyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  clearAll: { color: colors.danger, fontSize: 14, fontWeight: '700' },
+  clearAll: { color: colors.danger, fontSize: 14, fontFamily: fonts.bold },
   content: { padding: 16, gap: 10 },
-  segmented: {
-    flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 4,
-  },
-  segment: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 9 },
-  segmentActive: { backgroundColor: colors.cardAlt },
-  segmentText: { color: colors.textFaint, fontWeight: '700', fontSize: 15 },
-  segmentTextActive: { color: colors.text },
-  summary: { color: colors.textMuted, fontSize: 14, marginBottom: 2 },
+  summary: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, marginBottom: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  name: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  meta: { color: colors.textMuted, fontSize: 14 },
+  name: { color: colors.text, fontSize: 16, fontFamily: fonts.bold },
+  meta: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14 },
 });

@@ -9,7 +9,7 @@ import { MUSCLE_GROUPS, normalizeSearch } from '@/data/exercises';
 import type { Exercise, MuscleGroup } from '@/data/exercises';
 import { useStore } from '@/data/store';
 import { confirmAction } from '@/lib/format';
-import { colors, radius } from '@/theme';
+import { colors, fonts, outline, radius } from '@/theme';
 
 type Props = {
   visible: boolean;
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  title: { color: colors.text, fontSize: 20, fontWeight: '800' },
+  title: { color: colors.text, fontSize: 25, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -199,10 +199,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: colors.card,
     borderRadius: radius,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...outline,
   },
-  searchInput: { flex: 1, color: colors.text, fontSize: 16, paddingVertical: 12 },
+  searchInput: { flex: 1, color: colors.text, fontFamily: fonts.regular, fontSize: 16, paddingVertical: 12 },
   chipsRow: { height: 40, marginTop: 12, marginBottom: 8 },
   chipsContent: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
   wrapChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
@@ -211,14 +210,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...outline,
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { color: colors.textMuted, fontWeight: '600' },
+  chipText: { color: colors.textMuted, fontFamily: fonts.semibold },
   chipTextActive: { color: colors.primaryText },
   createRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
-  createText: { color: colors.primary, fontSize: 16, fontWeight: '700' },
+  createText: { color: colors.primary, fontSize: 16, fontFamily: fonts.bold },
   row: {
     gap: 12,
     flexDirection: 'row',
@@ -229,20 +227,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   rowSelected: { backgroundColor: colors.cardAlt },
-  rowName: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  rowGroup: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  rowName: { color: colors.text, fontSize: 16, fontFamily: fonts.semibold },
+  rowGroup: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, marginTop: 2 },
   emptyText: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
   footer: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border },
   createForm: { padding: 16 },
-  label: { color: colors.textMuted, fontWeight: '700', marginBottom: 8 },
+  label: { color: colors.textMuted, fontFamily: fonts.bold, marginBottom: 8 },
   input: {
     backgroundColor: colors.card,
     color: colors.text,
-    fontSize: 16,
+    fontFamily: fonts.regular, fontSize: 16,
     padding: 14,
     borderRadius: radius,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...outline,
     marginBottom: 20,
   },
 });

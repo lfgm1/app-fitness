@@ -12,7 +12,7 @@ import { useProfile } from '@/data/profile';
 import type { Profile, WeightUnit } from '@/data/profile';
 import { clearLocalData, useStore } from '@/data/store';
 import { confirmAction, notify } from '@/lib/format';
-import { colors } from '@/theme';
+import { colors, fonts } from '@/theme';
 
 const MIN_SETS = 1;
 const MAX_SETS = 10;
@@ -176,13 +176,13 @@ const styles = StyleSheet.create({
   group: { padding: 0, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
   divider: { borderTopWidth: 1, borderTopColor: colors.border },
-  label: { color: colors.text, fontSize: 16 },
-  hint: { color: colors.textFaint, fontSize: 12, marginTop: 2 },
-  value: { color: colors.textMuted, fontSize: 15, flexShrink: 1, maxWidth: '60%' },
+  label: { color: colors.text, fontFamily: fonts.regular, fontSize: 16 },
+  hint: { color: colors.textFaint, fontFamily: fonts.regular, fontSize: 12, marginTop: 2 },
+  value: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, flexShrink: 1, maxWidth: '60%' },
   segmented: { flexDirection: 'row', backgroundColor: colors.cardAlt, borderRadius: 10, padding: 3 },
   segment: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8 },
   segmentActive: { backgroundColor: colors.primary },
-  segmentText: { color: colors.textMuted, fontWeight: '700' },
+  segmentText: { color: colors.textMuted, fontFamily: fonts.bold },
   segmentTextActive: { color: colors.primaryText },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   stepperButton: {
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepperValue: { color: colors.text, fontSize: 16, fontWeight: '800', minWidth: 28, textAlign: 'center' },
+  stepperValue: { color: colors.text, fontSize: 20, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4, minWidth: 28, textAlign: 'center' },
   deleteLink: { alignSelf: 'center', padding: 12 },
-  deleteText: { color: colors.danger, fontSize: 14, fontWeight: '600' },
+  deleteText: { color: colors.danger, fontSize: 14, fontFamily: fonts.semibold },
 });

@@ -49,7 +49,7 @@ O app pede um **código** em vez de um link. Em **Authentication → Emails → 
 5. Em **Authentication → URL Configuration → Redirect URLs**, adicione:
    - `http://localhost:8081` (testes no navegador)
    - `exp://**` (testes no Expo Go)
-   - `fitnessapp://**` (app instalado)
+   - `gainsclub://**` (app instalado)
 
 ## Sobre estabilidade e backups
 - Os dados ficam num banco PostgreSQL gerenciado pelo Supabase.

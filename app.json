@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "fitness-app",
-    "slug": "fitness-app",
-    "scheme": "fitnessapp",
+    "name": "Gains Club",
+    "slug": "gains-club",
+    "scheme": "gainsclub",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,7 +12,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#C6F432",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -25,7 +25,16 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0E0F12",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

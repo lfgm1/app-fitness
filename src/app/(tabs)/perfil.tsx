@@ -6,7 +6,7 @@ import { useAuth } from '@/data/auth';
 import { EXPERIENCE_HINTS, EXPERIENCE_LABELS, SEX_LABELS, useProfile } from '@/data/profile';
 import { ageFrom, formatBirthDate } from '@/lib/format';
 import { kgToUnit, useUnits } from '@/lib/units';
-import { colors } from '@/theme';
+import { colors, fonts } from '@/theme';
 
 function formatSteps(n: number) {
   return String(n).replace(/\B(?=(\d{3})+$)/g, '.');
@@ -79,12 +79,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  initial: { color: colors.primaryText, fontSize: 34, fontWeight: '800' },
-  name: { color: colors.text, fontSize: 22, fontWeight: '800' },
-  email: { color: colors.textMuted, fontSize: 14 },
+  initial: { color: colors.primaryText, fontSize: 43, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  name: { color: colors.text, fontSize: 28, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  email: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
   divider: { borderTopWidth: 1, borderTopColor: colors.border },
-  label: { color: colors.textMuted, fontSize: 15, flex: 1 },
-  value: { color: colors.text, fontSize: 15, fontWeight: '600', textAlign: 'right', flexShrink: 1 },
-  empty: { color: colors.textFaint, fontWeight: '400' },
+  label: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, flex: 1 },
+  value: { color: colors.text, fontSize: 15, fontFamily: fonts.semibold, textAlign: 'right', flexShrink: 1 },
+  empty: { color: colors.textFaint, fontFamily: fonts.regular },
 });

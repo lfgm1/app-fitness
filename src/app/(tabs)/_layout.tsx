@@ -2,7 +2,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs, router } from 'expo-router';
 import { Pressable } from 'react-native';
 
-import { colors } from '@/theme';
+import { Logo } from '@/components/Logo';
+import { colors, fonts, outlineColor, outlineWidth } from '@/theme';
 
 function SettingsButton() {
   return (
@@ -22,18 +23,21 @@ export default function TabsLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
-        headerTitleStyle: { fontWeight: '800', fontSize: 22 },
+        headerTitleStyle: { fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4, fontSize: 28 },
         headerShadowVisible: false,
         headerRight: () => <SettingsButton />,
         sceneStyle: { backgroundColor: colors.background },
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
+        tabBarStyle: { backgroundColor: colors.card, borderTopColor: outlineColor, borderTopWidth: outlineWidth },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textFaint,
+        tabBarLabelStyle: { fontFamily: fonts.semibold },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Início',
+          headerTitle: () => <Logo size={38} />,
+          headerTitleAlign: 'left',
           tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color as string} />,
         }}
       />
@@ -42,13 +46,6 @@ export default function TabsLayout() {
         options={{
           title: 'Treinos',
           tabBarIcon: ({ color, size }) => <Ionicons name="barbell" size={size} color={color as string} />,
-        }}
-      />
-      <Tabs.Screen
-        name="progresso"
-        options={{
-          title: 'Progresso',
-          tabBarIcon: ({ color, size }) => <Ionicons name="trending-up" size={size} color={color as string} />,
         }}
       />
       <Tabs.Screen

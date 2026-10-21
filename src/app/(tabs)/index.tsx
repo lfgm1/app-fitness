@@ -4,14 +4,16 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ExerciseImage } from '@/components/ExerciseImage';
-import { Button, Card, SectionTitle, StatusBadge } from '@/components/ui';
+import { Frank } from '@/components/Frank';
+import { Button, Card, PRBadge, SectionTitle, StatusBadge } from '@/components/ui';
 import { useProfile } from '@/data/profile';
 import { useStore } from '@/data/store';
 import type { Workout } from '@/data/store';
+import { frankProgress } from '@/lib/frank';
 import { formatShortDate } from '@/lib/format';
 import { exerciseHistory } from '@/lib/progress';
 import { useUnits } from '@/lib/units';
-import { colors } from '@/theme';
+import { colors, fonts } from '@/theme';
 
 const WEEKDAY_LETTERS = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -39,6 +41,9 @@ export default function HomeScreen() {
 
   const firstName = profile?.name?.split(' ')[0];
   const today = `${WEEKDAYS[now.getDay()]}, ${now.getDate()} de ${MONTHS[now.getMonth()]}`;
+
+  // Fase do Frank, pelo total de treinos registrados.
+  const frank = frankProgress(sessions.length);
 
   // Treino em andamento (rascunho salvo).
   const inProgress = workouts.find((w) => drafts[w.id]);
@@ -82,14 +87,15 @@ export default function HomeScreen() {
       <View>
         <Text style={styles.greeting}>
           {greeting(now.getHours())}
-          {firstName ? `, ${firstName}` : ''}!
+          {firstName ? ', ' : ''}
+          {firstName && <Text style={{ color: colors.primary }}>{firstName}</Text>}!
         </Text>
         <Text style={styles.date}>{today}</Text>
       </View>
 
       {workouts.length === 0 ? (
         <Card style={styles.welcome}>
-          <Ionicons name="barbell" size={32} color={colors.primary} />
+          <Frank phase="frango" size={96} />
           <Text style={styles.welcomeTitle}>Vamos começar?</Text>
           <Text style={styles.welcomeText}>
             Monte seu primeiro treino, por exemplo “Peito”, escolhendo os exercícios. Depois é só registrar as cargas
@@ -99,6 +105,31 @@ export default function HomeScreen() {
         </Card>
       ) : (
         <>
+          <Pressable
+            onPress={() => router.push('/frank')}
+            accessibilityRole="button"
+            accessibilityLabel="Ver as evoluções do Frank">
+            <Card style={styles.frankCard}>
+              <Frank phase={frank.current.phase} size={84} />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={styles.cardLabel}>Seu Frank</Text>
+                <Text style={styles.cardTitle}>{frank.current.name}</Text>
+                <View style={styles.frankBar}>
+                  <View style={[styles.frankFill, { width: `${Math.round(frank.progress * 100)}%` }]} />
+                </View>
+                <Text style={styles.cardMeta}>
+                  {frank.next
+                    ? `${frank.remaining} treino${frank.remaining === 1 ? '' : 's'} para virar ${frank.next.name}`
+                    : `Fase máxima · ${sessions.length} treinos registrados`}
+                </Text>
+                <View style={styles.frankLink}>
+                  <Text style={styles.frankLinkText}>Ver evoluções</Text>
+                  <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+                </View>
+              </View>
+            </Card>
+          </Pressable>
+
           {inProgress && (
             <Card style={[styles.highlight, { borderColor: colors.primary }]}>
               <View style={{ flex: 1 }}>
@@ -170,7 +201,7 @@ export default function HomeScreen() {
                         {units.set(a.best)} · {formatShortDate(a.date)}
                       </Text>
                     </View>
-                    <StatusBadge status={a.status} />
+                    {a.isPR ? <PRBadge /> : <StatusBadge status={a.status} />}
                   </Card>
                 </Pressable>
               ))}
@@ -184,16 +215,21 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12, paddingBottom: 32 },
-  greeting: { color: colors.text, fontSize: 26, fontWeight: '800' },
-  date: { color: colors.textMuted, fontSize: 15, marginTop: 2 },
+  greeting: { color: colors.text, fontSize: 40, lineHeight: 41, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  date: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, marginTop: 2 },
   welcome: { alignItems: 'flex-start', gap: 10, padding: 20 },
-  welcomeTitle: { color: colors.text, fontSize: 20, fontWeight: '800' },
-  welcomeText: { color: colors.textMuted, fontSize: 15, lineHeight: 22, marginBottom: 6 },
+  welcomeTitle: { color: colors.text, fontSize: 25, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  welcomeText: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, marginBottom: 6 },
+  frankCard: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 },
+  frankLink: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 6 },
+  frankLinkText: { color: colors.primary, fontFamily: fonts.bold, fontSize: 13 },
+  frankBar: { height: 6, borderRadius: 3, backgroundColor: colors.cardAlt, overflow: 'hidden', marginTop: 4 },
+  frankFill: { height: 6, borderRadius: 3, backgroundColor: colors.primary },
   highlight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  cardLabel: { color: colors.textMuted, fontSize: 13 },
-  cardTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 2 },
-  cardMeta: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
-  weekCount: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  cardLabel: { color: colors.textMuted, fontFamily: fonts.semibold, fontSize: 14 },
+  cardTitle: { color: colors.text, fontSize: 23, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 },
+  cardMeta: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, marginTop: 2 },
+  weekCount: { color: colors.text, fontSize: 16, fontFamily: fonts.bold },
   days: { flexDirection: 'row', justifyContent: 'space-between' },
   day: { alignItems: 'center', gap: 6 },
   dayDot: {
@@ -206,7 +242,7 @@ const styles = StyleSheet.create({
   },
   dayDotDone: { backgroundColor: colors.primary },
   dayDotToday: { borderWidth: 2, borderColor: colors.textMuted },
-  dayLetter: { color: colors.textFaint, fontSize: 12, fontWeight: '700' },
+  dayLetter: { color: colors.textFaint, fontSize: 12, fontFamily: fonts.mono },
   achievement: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
-  achievementName: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  achievementName: { color: colors.text, fontSize: 15, fontFamily: fonts.bold },
 });

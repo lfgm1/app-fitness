@@ -12,6 +12,23 @@ export function parseNumber(text: string): number | null {
   return text.trim() !== '' && Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+/** Segundos -> "0:45" ou "1:10". */
+export function formatDuration(totalSeconds: number) {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** Tempo digitado -> segundos. Aceita "1:10", "45" (segundos) ou "1.10". */
+export function parseDuration(text: string): number | null {
+  const t = text.trim().replace('.', ':').replace(',', ':');
+  if (!t) return null;
+  const match = /^(\d+)(?::(\d{1,2}))?$/.exec(t);
+  if (!match) return null;
+  if (match[2] === undefined) return Number(match[1]);
+  const seconds = Number(match[2]);
+  return seconds < 60 ? Number(match[1]) * 60 + seconds : null;
+}
+
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const pad = (n: number) => String(n).padStart(2, '0');
 

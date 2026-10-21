@@ -8,7 +8,7 @@ import { ExercisePicker } from '@/components/ExercisePicker';
 import { Button, Card, SectionTitle } from '@/components/ui';
 import { useStore } from '@/data/store';
 import { confirmAction } from '@/lib/format';
-import { colors, radius } from '@/theme';
+import { colors, fonts, outline, radius } from '@/theme';
 
 export default function EditWorkoutScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -126,15 +126,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     color: colors.text,
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
     padding: 14,
     borderRadius: radius,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...outline,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  order: { color: colors.textFaint, fontWeight: '800', width: 18 },
-  exName: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  exGroup: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  order: { color: colors.textFaint, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4, width: 18 },
+  exName: { color: colors.text, fontSize: 16, fontFamily: fonts.semibold },
+  exGroup: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, marginTop: 2 },
 });

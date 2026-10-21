@@ -1,3 +1,7 @@
+import { BigShoulders_800ExtraBold } from '@expo-google-fonts/big-shoulders';
+import { PublicSans_400Regular, PublicSans_500Medium, PublicSans_600SemiBold, PublicSans_700Bold } from '@expo-google-fonts/public-sans';
+import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
@@ -8,7 +12,7 @@ import { ProfileForm } from '@/components/ProfileForm';
 import { AuthProvider, useAuth } from '@/data/auth';
 import { ProfileProvider, useProfile } from '@/data/profile';
 import { StoreProvider, useStore } from '@/data/store';
-import { colors } from '@/theme';
+import { colors, fonts } from '@/theme';
 
 function Loading() {
   return (
@@ -37,7 +41,7 @@ function Navigator() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
-        headerTitleStyle: { fontWeight: '700' },
+        headerTitleStyle: { fontFamily: fonts.bold },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: colors.background },
         headerBackButtonDisplayMode: 'minimal',
@@ -52,6 +56,7 @@ function Navigator() {
       <Stack.Screen name="alterar-senha" options={{ title: 'Alterar senha' }} />
       <Stack.Screen name="excluir-conta" options={{ title: 'Excluir conta' }} />
       <Stack.Screen name="privacidade" options={{ title: 'Política de privacidade' }} />
+      <Stack.Screen name="frank" options={{ title: 'Evoluções do Frank' }} />
     </Stack>
   );
 }
@@ -71,6 +76,17 @@ function AuthGate() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    BigShoulders_800ExtraBold,
+    PublicSans_400Regular,
+    PublicSans_500Medium,
+    PublicSans_600SemiBold,
+    PublicSans_700Bold,
+    JetBrainsMono_500Medium,
+  });
+  // Se as fontes falharem, o app abre mesmo assim com a fonte do sistema.
+  if (!fontsLoaded && !fontError) return <Loading />;
+
   return (
     <AuthProvider>
       <StatusBar style="light" />

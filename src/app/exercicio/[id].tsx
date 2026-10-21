@@ -2,15 +2,17 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { BLOCK_COLORS, BlockChart } from '@/components/BlockChart';
 import { ExerciseImage } from '@/components/ExerciseImage';
-import { ProgressChart } from '@/components/ProgressChart';
-import { Card, EmptyState, SectionTitle, StatusBadge } from '@/components/ui';
+import { TimeBarChart } from '@/components/TimeBarChart';
+import { Card, EmptyState, PRBadge, SectionTitle, StatusBadge } from '@/components/ui';
 import { useStore } from '@/data/store';
 import { formatDate, formatDateLong } from '@/lib/format';
 import { useUnits } from '@/lib/units';
-import { STATUS_INFO, exerciseHistory } from '@/lib/progress';
+import { isTimedExercise } from '@/data/exercises';
+import { STATUS_INFO, beatsSet, exerciseHistory, setMetric } from '@/lib/progress';
 import type { ProgressStatus } from '@/lib/progress';
-import { colors, statusColors } from '@/theme';
+import { colors, fonts, statusColors } from '@/theme';
 
 const LEGEND: ProgressStatus[] = ['carga', 'micro', 'manteve', 'regrediu'];
 
@@ -33,13 +35,10 @@ export default function ExerciseProgressScreen() {
 
   const first = history[0];
   const last = history.at(-1)!;
-  const record = history.reduce((best, h) =>
-    h.best.weight > best.best.weight || (h.best.weight === best.best.weight && h.best.reps > best.best.reps)
-      ? h
-      : best
-  );
-  const diff = last.best.weight - first.best.weight;
-  const pct = first.best.weight > 0 ? Math.round((diff / first.best.weight) * 100) : 0;
+  const timed = isTimedExercise(id);
+  const record = history.reduce((best, h) => (beatsSet(h.best, best.best) ? h : best));
+  const diff = setMetric(last.best) - setMetric(first.best);
+  const pct = setMetric(first.best) > 0 ? Math.round((diff / setMetric(first.best)) * 100) : 0;
   const loadUps = history.filter((h) => h.status === 'carga').length;
   const microUps = history.filter((h) => h.status === 'micro').length;
   const point = history[Math.min(selected, history.length - 1)];
@@ -58,44 +57,47 @@ export default function ExerciseProgressScreen() {
 
         <View style={styles.statsRow}>
           <Stat label="Atual" value={units.set(last.best)} />
-          <Stat label="Recorde" value={units.set(record.best)} />
+          <Stat label="Recorde" value={units.set(record.best)} color={colors.crista} />
           <Stat
             label="Evolução"
-            value={`${diff >= 0 ? '+' : ''}${units.weight(diff)}${units.unit}`}
+            value={units.delta(first.best, last.best) || (timed ? '0s' : `0${units.unit}`)}
             sub={history.length > 1 ? `${pct >= 0 ? '+' : ''}${pct}%` : undefined}
             color={diff > 0 ? statusColors.carga : diff < 0 ? statusColors.regrediu : undefined}
           />
         </View>
 
         <Card style={{ gap: 8 }}>
-          <Text style={styles.chartTitle}>Carga máxima por treino</Text>
-          <ProgressChart entries={history} selectedIndex={selected} onSelect={setSelected} />
+          <Text style={styles.chartTitle}>{timed ? 'Maior tempo por treino' : 'Carga máxima por treino'}</Text>
+          {timed ? (
+            <TimeBarChart entries={history} selectedIndex={selected} onSelect={setSelected} />
+          ) : (
+            <BlockChart entries={history} selectedIndex={selected} onSelect={setSelected} />
+          )}
           <View style={styles.legend}>
-            {LEGEND.map((s) => (
+            {LEGEND.filter((s) => !timed || s !== 'micro').map((s) => (
               <View key={s} style={styles.legendItem}>
-                <View style={[styles.dot, { backgroundColor: statusColors[s] }]} />
-                <Text style={styles.legendText}>{STATUS_INFO[s].label}</Text>
+                <View style={[styles.dot, { backgroundColor: BLOCK_COLORS[s] }]} />
+                <Text style={styles.legendText}>{timed && s === 'carga' ? 'Mais tempo' : STATUS_INFO[s].label}</Text>
               </View>
             ))}
+            <View style={styles.legendItem}>
+              <View style={[styles.dot, { backgroundColor: colors.bico }]} />
+              <Text style={styles.legendText}>Recorde</Text>
+            </View>
           </View>
-          <Text style={styles.chartHint}>
-            O número acima de cada ponto são as repetições da melhor série. Micro progressão é quando a carga
-            máxima se mantém, mas você faz mais repetições com ela (em uma série ou somando as séries). Toque em um
-            ponto para ver os detalhes.
-          </Text>
         </Card>
 
         <Card style={[styles.detail, { borderColor: statusColors[point.status] }]}>
           <View style={styles.detailHeader}>
             <Text style={styles.detailDate}>{formatDateLong(point.date)}</Text>
-            <StatusBadge status={point.status} />
+            {point.isPR ? <PRBadge /> : <StatusBadge status={point.status} timed={timed} />}
           </View>
           <Text style={styles.detailSets}>{point.sets.map(units.set).join('  ·  ')}</Text>
         </Card>
 
         <View style={styles.statsRow}>
-          <Stat label="Progressões de carga" value={String(loadUps)} color={statusColors.carga} />
-          <Stat label="Micro progressões" value={String(microUps)} color={statusColors.micro} />
+          <Stat label={timed ? 'Vezes que aumentou' : 'Progressões de carga'} value={String(loadUps)} color={statusColors.carga} />
+          {!timed && <Stat label="Micro progressões" value={String(microUps)} color={statusColors.micro} />}
           <Stat label="Treinos" value={String(history.length)} />
         </View>
 
@@ -104,12 +106,12 @@ export default function ExerciseProgressScreen() {
           const index = history.indexOf(h);
           return (
             <Pressable key={h.sessionId} onPress={() => setSelected(index)}>
-              <Card style={[styles.histRow, index === selected && { borderColor: colors.textMuted }]}>
+              <Card style={[styles.histRow, index === selected && { borderColor: colors.primary }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.histDate}>{formatDate(h.date)}</Text>
                   <Text style={styles.histSets}>{h.sets.map(units.set).join(' · ')}</Text>
                 </View>
-                <StatusBadge status={h.status} />
+                {h.isPR ? <PRBadge /> : <StatusBadge status={h.status} timed={timed} />}
               </Card>
             </Pressable>
           );
@@ -134,24 +136,23 @@ function Stat({ label, value, sub, color }: { label: string; value: string; sub?
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12, paddingBottom: 40 },
   hero: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  heroName: { color: colors.text, fontSize: 20, fontWeight: '800' },
-  heroGroup: { color: colors.textMuted, fontSize: 14, marginTop: 2 },
+  heroName: { color: colors.text, fontSize: 25, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  heroGroup: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, marginTop: 2 },
   statsRow: { flexDirection: 'row', gap: 8 },
   stat: { flex: 1, padding: 12, gap: 2 },
-  statLabel: { color: colors.textMuted, fontSize: 12 },
-  statValue: { color: colors.text, fontSize: 17, fontWeight: '800' },
-  statSub: { color: colors.textMuted, fontSize: 12 },
-  chartTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  statLabel: { color: colors.textMuted, fontFamily: fonts.semibold, fontSize: 13 },
+  statValue: { color: colors.text, fontSize: 21, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  statSub: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 12 },
+  chartTitle: { color: colors.text, fontSize: 16, fontFamily: fonts.bold },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { color: colors.textMuted, fontSize: 12 },
-  chartHint: { color: colors.textFaint, fontSize: 12, lineHeight: 17 },
+  legendText: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 12 },
   detail: { gap: 8 },
   detailHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  detailDate: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  detailSets: { color: colors.textMuted, fontSize: 15, lineHeight: 22 },
+  detailDate: { color: colors.text, fontSize: 15, fontFamily: fonts.bold },
+  detailSets: { color: colors.textMuted, fontFamily: fonts.mono, fontSize: 14, lineHeight: 22 },
   histRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
-  histDate: { color: colors.text, fontWeight: '700' },
-  histSets: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  histDate: { color: colors.text, fontFamily: fonts.bold },
+  histSets: { color: colors.textMuted, fontFamily: fonts.mono, fontSize: 12, marginTop: 2 },
 });

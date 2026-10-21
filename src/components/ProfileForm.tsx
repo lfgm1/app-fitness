@@ -8,7 +8,7 @@ import { EXPERIENCE_HINTS, EXPERIENCE_LABELS, SEX_LABELS } from '@/data/profile'
 import type { Experience, Profile, Sex } from '@/data/profile';
 import { ageFrom, formatBirthDate, maskDate, parseBirthDate } from '@/lib/format';
 import { kgToUnit, unitToKg } from '@/lib/units';
-import { colors, radius } from '@/theme';
+import { colors, fonts, outline, radius } from '@/theme';
 
 const MIN_AGE = 13;
 const STEP_GOALS = [5000, 10000, 15000];
@@ -287,18 +287,17 @@ function Choices<T extends string>({
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12, paddingBottom: 40, maxWidth: 560, width: '100%', alignSelf: 'center' },
-  title: { color: colors.text, fontSize: 26, fontWeight: '800' },
-  subtitle: { color: colors.textMuted, fontSize: 15, lineHeight: 22 },
+  title: { color: colors.text, fontSize: 33, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  subtitle: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22 },
   row: { flexDirection: 'row', gap: 10 },
   input: {
     backgroundColor: colors.card,
     color: colors.text,
-    fontSize: 16,
+    fontFamily: fonts.regular, fontSize: 16,
     paddingHorizontal: 14,
     paddingVertical: 14,
     borderRadius: radius,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...outline,
     minWidth: 0,
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -307,15 +306,14 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 999,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...outline,
   },
   chipWithDescription: { flex: 1, minWidth: 100, alignItems: 'center', borderRadius: 12, paddingVertical: 10, gap: 2 },
-  chipDescription: { color: colors.textFaint, fontSize: 12 },
+  chipDescription: { color: colors.textFaint, fontFamily: fonts.regular, fontSize: 12 },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { color: colors.textMuted, fontWeight: '600' },
+  chipText: { color: colors.textMuted, fontFamily: fonts.semibold },
   chipTextActive: { color: colors.primaryText },
-  error: { color: colors.danger, fontSize: 14, lineHeight: 20 },
+  error: { color: colors.danger, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
   select: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -324,21 +322,19 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: colors.card,
     borderRadius: radius,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...outline,
   },
-  selectText: { flex: 1, color: colors.text, fontSize: 16 },
+  selectText: { flex: 1, color: colors.text, fontFamily: fonts.regular, fontSize: 16 },
   list: {
     backgroundColor: colors.card,
     borderRadius: radius,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...outline,
     overflow: 'hidden',
   },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 14 },
   listDivider: { borderTopWidth: 1, borderTopColor: colors.border },
   listPressed: { backgroundColor: colors.cardAlt },
-  listText: { color: colors.text, fontSize: 16 },
-  listHint: { color: colors.textFaint, fontSize: 13, marginTop: 2 },
-  hint: { color: colors.textFaint, fontSize: 13, marginTop: -4, paddingHorizontal: 4 },
+  listText: { color: colors.text, fontFamily: fonts.regular, fontSize: 16 },
+  listHint: { color: colors.textFaint, fontFamily: fonts.regular, fontSize: 13, marginTop: 2 },
+  hint: { color: colors.textFaint, fontFamily: fonts.regular, fontSize: 13, marginTop: -4, paddingHorizontal: 4 },
 });

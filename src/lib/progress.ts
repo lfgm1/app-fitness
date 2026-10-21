@@ -20,6 +20,8 @@ export type HistoryEntry = {
   /** Soma das repetições feitas na carga máxima do dia. */
   repsAtTop: number;
   status: ProgressStatus;
+  /** Recorde pessoal: a melhor série do dia superou a melhor série de todos os treinos anteriores. */
+  isPR: boolean;
 };
 
 export const STATUS_INFO: Record<ProgressStatus, { label: string; short: string }> = {
@@ -30,11 +32,23 @@ export const STATUS_INFO: Record<ProgressStatus, { label: string; short: string 
   regrediu: { label: 'Abaixo do anterior', short: 'Abaixo' },
 };
 
+/**
+ * Se a série "a" é melhor que "b": mais carga ou, com a mesma carga, mais repetições.
+ * Nos exercícios de tempo, mais segundos.
+ */
+export function beatsSet(a: SetEntry, b: SetEntry) {
+  if (a.weight !== b.weight) return a.weight > b.weight;
+  if (a.reps !== b.reps) return a.reps > b.reps;
+  return (a.seconds ?? 0) > (b.seconds ?? 0);
+}
+
+/** O número principal de uma série: segundos nos exercícios de tempo, carga (kg) nos outros. */
+export function setMetric(s: SetEntry) {
+  return s.seconds ?? s.weight;
+}
+
 export function bestSet(sets: SetEntry[]): SetEntry {
-  return sets.reduce(
-    (best, s) => (s.weight > best.weight || (s.weight === best.weight && s.reps > best.reps) ? s : best),
-    sets[0]
-  );
+  return sets.reduce((best, s) => (beatsSet(s, best) ? s : best), sets[0]);
 }
 
 function repsAtWeight(sets: SetEntry[], weight: number) {
@@ -49,6 +63,8 @@ export function compareSets(prev: SetEntry[] | undefined, cur: SetEntry[]): Prog
   if (b.weight < a.weight) return 'regrediu';
   if (b.reps > a.reps) return 'micro';
   if (b.reps < a.reps) return 'regrediu';
+  if ((b.seconds ?? 0) > (a.seconds ?? 0)) return 'carga';
+  if ((b.seconds ?? 0) < (a.seconds ?? 0)) return 'regrediu';
   if (repsAtWeight(cur, b.weight) > repsAtWeight(prev, a.weight)) return 'micro';
   return 'manteve';
 }
@@ -61,6 +77,7 @@ function byDate(a: Session, b: Session) {
 export function exerciseHistory(sessions: Session[], exerciseId: string): HistoryEntry[] {
   const result: HistoryEntry[] = [];
   let prevSets: SetEntry[] | undefined;
+  let record: SetEntry | undefined;
   for (const session of [...sessions].sort(byDate)) {
     const ex = session.exercises.find((e) => e.exerciseId === exerciseId);
     if (!ex || ex.sets.length === 0) continue;
@@ -72,10 +89,34 @@ export function exerciseHistory(sessions: Session[], exerciseId: string): Histor
       best,
       repsAtTop: repsAtWeight(ex.sets, best.weight),
       status: compareSets(prevSets, ex.sets),
+      isPR: record !== undefined && beatsSet(best, record),
     });
     prevSets = ex.sets;
+    if (!record || beatsSet(best, record)) record = best;
   }
   return result;
+}
+
+/**
+ * A melhor série de um exercício em todos os treinos antes de uma data (o recorde a ser batido).
+ * O primeiro registro de um exercício não conta como recorde: ainda não há o que bater.
+ */
+export function recordBefore(sessions: Session[], exerciseId: string, beforeDate?: string) {
+  let record: SetEntry | undefined;
+  for (const session of sessions) {
+    if (beforeDate && session.date >= beforeDate) continue;
+    const ex = session.exercises.find((e) => e.exerciseId === exerciseId);
+    if (!ex || ex.sets.length === 0) continue;
+    const best = bestSet(ex.sets);
+    if (!record || beatsSet(best, record)) record = best;
+  }
+  return record;
+}
+
+/** Se as séries de um treino bateram o recorde pessoal do exercício. */
+export function isPersonalRecord(sessions: Session[], exerciseId: string, sets: SetEntry[], date: string) {
+  const record = recordBefore(sessions, exerciseId, date);
+  return record !== undefined && sets.length > 0 && beatsSet(bestSet(sets), record);
 }
 
 /** O último registro de um exercício antes de uma data (ou o último de todos): data e séries. */

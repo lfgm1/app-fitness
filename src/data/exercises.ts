@@ -259,6 +259,13 @@ function slug(text: string) {
     .replace(/(^-|-$)/g, '');
 }
 
+/** Exercícios contados por tempo (com timer na hora de registrar), em vez de carga e repetições. */
+const TIMED_EXERCISES = new Set(['Prancha', 'Prancha lateral'].map(slug));
+
+export function isTimedExercise(exerciseId: string) {
+  return TIMED_EXERCISES.has(exerciseId);
+}
+
 export const DEFAULT_EXERCISES: Exercise[] = MUSCLE_GROUPS.flatMap((group) =>
   LIBRARY[group].map((name) => ({ id: slug(name), name, group }))
 );

@@ -13,7 +13,11 @@ import type { Exercise, MuscleGroup } from './exercises';
 import { isNetworkError, outboxKey, parseOutboxKey, pullChanges, pushChanges } from './sync';
 import type { SyncRecord, TableName } from './sync';
 
-export type SetEntry = { weight: number; reps: number };
+/**
+ * Uma série feita. Nos exercícios de tempo (ex: prancha) a série guarda só os segundos
+ * (carga e repetições ficam 0).
+ */
+export type SetEntry = { weight: number; reps: number; seconds?: number };
 
 export type SessionExercise = { exerciseId: string; sets: SetEntry[] };
 
@@ -45,6 +49,10 @@ export type DraftSet = { weight: string; reps: string };
 export type Draft = {
   date: string;
   sets: Record<string, DraftSet[]>;
+  /** Exercícios adicionados só neste dia (não entram no treino montado). */
+  extraIds?: string[];
+  /** Exercícios do treino montado que foram pulados neste dia. */
+  skippedIds?: string[];
 };
 
 type Data = {
@@ -164,6 +172,8 @@ type Store = {
   saveWorkout: (workout: Pick<Workout, 'name' | 'exerciseIds'> & { id?: string }) => Workout;
   deleteWorkout: (id: string) => void;
   addSession: (session: Omit<Session, 'id'>) => Session;
+  /** Corrige um treino já registrado (data e séries). */
+  updateSession: (id: string, changes: Pick<Session, 'date' | 'exercises'>) => void;
   deleteSession: (id: string) => void;
   /** Apaga todo o histórico de treinos realizados (treinos montados e exercícios ficam). */
   deleteAllSessions: () => void;
@@ -385,6 +395,11 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
         const saved: Session = { ...session, id: newId() };
         commit('sessions', saved);
         return saved;
+      },
+
+      updateSession: (id, changes) => {
+        const existing = dataRef.current.sessions.find((s) => s.id === id);
+        if (existing) commit('sessions', { ...existing, ...changes });
       },
 
       deleteSession: (id) => {
