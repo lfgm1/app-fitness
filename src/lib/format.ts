@@ -1,15 +1,10 @@
 import { Alert, Platform } from 'react-native';
 
-import type { SetEntry } from '@/data/store';
-
 /** 42.5 -> "42,5" (padrão brasileiro). */
-export function formatWeight(kg: number) {
-  return String(Math.round(kg * 100) / 100).replace('.', ',');
+export function formatWeight(value: number) {
+  return String(Math.round(value * 100) / 100).replace('.', ',');
 }
 
-export function formatSet(set: SetEntry) {
-  return `${formatWeight(set.weight)}kg × ${set.reps}`;
-}
 
 /** Aceita "42,5" ou "42.5". Retorna null se não for um número válido. */
 export function parseNumber(text: string): number | null {
@@ -78,4 +73,35 @@ export function confirmAction(title: string, message: string, confirmLabel: stri
 export function notify(title: string, message: string) {
   if (Platform.OS === 'web') window.alert(`${title}\n\n${message}`);
   else Alert.alert(title, message);
+}
+
+/** Formata enquanto a pessoa digita: "15031995" -> "15/03/1995". */
+export function maskDate(text: string) {
+  const digits = text.replace(/\D/g, '').slice(0, 8);
+  return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)].filter(Boolean).join('/');
+}
+
+/** "15/03/1995" -> "1995-03-15". Retorna null se a data não existir. */
+export function parseBirthDate(text: string): string | null {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(text);
+  if (!match) return null;
+  const [, dd, mm, yyyy] = match;
+  const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+  const valid =
+    date.getFullYear() === Number(yyyy) && date.getMonth() === Number(mm) - 1 && date.getDate() === Number(dd);
+  return valid ? `${yyyy}-${mm}-${dd}` : null;
+}
+
+/** "1995-03-15" -> "15/03/1995". */
+export function formatBirthDate(iso: string) {
+  const [yyyy, mm, dd] = iso.split('-');
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+/** Idade completa em anos a partir de "AAAA-MM-DD". */
+export function ageFrom(iso: string, now = new Date()) {
+  const [yyyy, mm, dd] = iso.split('-').map(Number);
+  let age = now.getFullYear() - yyyy;
+  if (now.getMonth() + 1 < mm || (now.getMonth() + 1 === mm && now.getDate() < dd)) age--;
+  return age;
 }

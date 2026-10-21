@@ -2,10 +2,12 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ExerciseImage } from '@/components/ExerciseImage';
 import { ProgressChart } from '@/components/ProgressChart';
 import { Card, EmptyState, SectionTitle, StatusBadge } from '@/components/ui';
 import { useStore } from '@/data/store';
-import { formatDate, formatDateLong, formatSet, formatWeight } from '@/lib/format';
+import { formatDate, formatDateLong } from '@/lib/format';
+import { useUnits } from '@/lib/units';
 import { STATUS_INFO, exerciseHistory } from '@/lib/progress';
 import type { ProgressStatus } from '@/lib/progress';
 import { colors, statusColors } from '@/theme';
@@ -15,6 +17,7 @@ const LEGEND: ProgressStatus[] = ['carga', 'micro', 'manteve', 'regrediu'];
 export default function ExerciseProgressScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { sessions, getExercise } = useStore();
+  const units = useUnits();
   const exercise = getExercise(id);
   const history = exerciseHistory(sessions, id);
   const [selected, setSelected] = useState(history.length - 1);
@@ -43,14 +46,22 @@ export default function ExerciseProgressScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: exercise?.name ?? 'Progressão' }} />
+      <Stack.Screen options={{ title: 'Progressão' }} />
       <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.hero}>
+          <ExerciseImage exerciseId={id} size={72} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroName}>{exercise?.name ?? 'Exercício removido'}</Text>
+            {exercise && <Text style={styles.heroGroup}>{exercise.group}</Text>}
+          </View>
+        </View>
+
         <View style={styles.statsRow}>
-          <Stat label="Atual" value={formatSet(last.best)} />
-          <Stat label="Recorde" value={formatSet(record.best)} />
+          <Stat label="Atual" value={units.set(last.best)} />
+          <Stat label="Recorde" value={units.set(record.best)} />
           <Stat
             label="Evolução"
-            value={`${diff >= 0 ? '+' : ''}${formatWeight(diff)}kg`}
+            value={`${diff >= 0 ? '+' : ''}${units.weight(diff)}${units.unit}`}
             sub={history.length > 1 ? `${pct >= 0 ? '+' : ''}${pct}%` : undefined}
             color={diff > 0 ? statusColors.carga : diff < 0 ? statusColors.regrediu : undefined}
           />
@@ -79,7 +90,7 @@ export default function ExerciseProgressScreen() {
             <Text style={styles.detailDate}>{formatDateLong(point.date)}</Text>
             <StatusBadge status={point.status} />
           </View>
-          <Text style={styles.detailSets}>{point.sets.map(formatSet).join('  ·  ')}</Text>
+          <Text style={styles.detailSets}>{point.sets.map(units.set).join('  ·  ')}</Text>
         </Card>
 
         <View style={styles.statsRow}>
@@ -96,7 +107,7 @@ export default function ExerciseProgressScreen() {
               <Card style={[styles.histRow, index === selected && { borderColor: colors.textMuted }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.histDate}>{formatDate(h.date)}</Text>
-                  <Text style={styles.histSets}>{h.sets.map(formatSet).join(' · ')}</Text>
+                  <Text style={styles.histSets}>{h.sets.map(units.set).join(' · ')}</Text>
                 </View>
                 <StatusBadge status={h.status} />
               </Card>
@@ -122,6 +133,9 @@ function Stat({ label, value, sub, color }: { label: string; value: string; sub?
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12, paddingBottom: 40 },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  heroName: { color: colors.text, fontSize: 20, fontWeight: '800' },
+  heroGroup: { color: colors.textMuted, fontSize: 14, marginTop: 2 },
   statsRow: { flexDirection: 'row', gap: 8 },
   stat: { flex: 1, padding: 12, gap: 2 },
   statLabel: { color: colors.textMuted, fontSize: 12 },

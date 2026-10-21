@@ -18,13 +18,17 @@ type Auth = {
   recoveringPassword: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   /** Retorna true se a conta precisa ser confirmada com o código enviado por e-mail. */
-  signUp: (email: string, password: string) => Promise<boolean>;
+  signUp: (email: string, password: string, name: string, birthDate: string) => Promise<boolean>;
   confirmEmail: (email: string, code: string) => Promise<void>;
   resendConfirmation: (email: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   resetPassword: (email: string, code: string, newPassword: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** Confere a senha atual antes de trocar (protege um celular desbloqueado nas mãos de outra pessoa). */
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  /** Apaga a conta e todos os dados dela no banco (depois, chame signOut). */
+  deleteAccount: () => Promise<void>;
 };
 
 const AuthContext = createContext<Auth | null>(null);
@@ -37,6 +41,7 @@ export function authErrorMessage(error: unknown): string {
   if (lower.includes('email not confirmed')) return 'Confirme seu e-mail antes de entrar.';
   if (lower.includes('already registered') || lower.includes('already been registered'))
     return 'Este e-mail já tem uma conta. Tente entrar.';
+  if (lower.includes('different from the old')) return 'A nova senha precisa ser diferente da atual.';
   if (lower.includes('password should be') || lower.includes('weak password'))
     return 'A senha precisa ter pelo menos 6 caracteres.';
   if (lower.includes('expired') || (lower.includes('invalid') && lower.includes('token')))
@@ -80,8 +85,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
       },
 
-      signUp: async (email, password) => {
-        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+      signUp: async (email, password, name, birthDate) => {
+        // O nome e o nascimento vão como metadados; o banco cria o perfil a partir deles.
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { data: { name: name.trim(), birth_date: birthDate } },
+        });
         if (error) throw error;
         // Se a conta já existe, o Supabase devolve um usuário sem identidades.
         if (data.user && data.user.identities?.length === 0) throw new Error('User already registered');
@@ -158,6 +168,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       signOut: async () => {
         await supabase.auth.signOut({ scope: 'local' });
+      },
+
+      changePassword: async (currentPassword, newPassword) => {
+        const email = session?.user.email;
+        if (!email) throw new Error('Not authenticated');
+        const { error: checkError } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+        if (checkError) throw new Error('Senha atual incorreta.');
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw error;
+      },
+
+      deleteAccount: async () => {
+        const { error } = await supabase.rpc('delete_my_account');
+        if (error) throw error;
       },
     }),
     [loading, session, recoveringPassword]

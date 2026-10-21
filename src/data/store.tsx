@@ -59,8 +59,6 @@ type Data = {
   lastPulledAt: string | null;
 };
 
-export type SyncStatus = 'carregando' | 'sincronizando' | 'sincronizado' | 'offline' | 'erro';
-
 const DATA_KEY = 'fitness-app/data/v1';
 const DRAFTS_KEY = 'fitness-app/drafts/v1';
 const SYNC_DELAY_MS = 1500;
@@ -81,7 +79,8 @@ export function newId() {
 
 /** Apaga os dados deste aparelho (usado ao sair da conta). */
 export async function clearLocalData() {
-  await AsyncStorage.multiRemove([DATA_KEY, DRAFTS_KEY]);
+  const profileKeys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith('fitness-app/profile/'));
+  await AsyncStorage.multiRemove([DATA_KEY, DRAFTS_KEY, ...profileKeys]);
 }
 
 // --- Ajudantes para ler e alterar as três coleções de forma genérica ---
@@ -155,16 +154,19 @@ type Store = {
   workouts: Workout[];
   sessions: Session[];
   drafts: Record<string, Draft>;
-  sync: { status: SyncStatus; pending: number; lastSyncedAt: string | null; error: string | null };
   syncNow: () => Promise<void>;
   /** Quantas alterações ainda não chegaram ao banco (valor atualizado na hora). */
   pendingNow: () => number;
   getExercise: (id: string) => Exercise | undefined;
   addCustomExercise: (name: string, group: MuscleGroup) => Exercise;
+  /** Exclui um exercício criado pela pessoa e o tira dos treinos montados (o histórico é mantido). */
+  deleteCustomExercise: (id: string) => void;
   saveWorkout: (workout: Pick<Workout, 'name' | 'exerciseIds'> & { id?: string }) => Workout;
   deleteWorkout: (id: string) => void;
   addSession: (session: Omit<Session, 'id'>) => Session;
   deleteSession: (id: string) => void;
+  /** Apaga todo o histórico de treinos realizados (treinos montados e exercícios ficam). */
+  deleteAllSessions: () => void;
   saveDraft: (workoutId: string, draft: Draft) => void;
   clearDraft: (workoutId: string) => void;
 };
@@ -179,11 +181,6 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
   const [data, setData] = useState<Data>(() => emptyData(userId));
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [loaded, setLoaded] = useState(false);
-  const [syncInfo, setSyncInfo] = useState<Omit<Store['sync'], 'pending'>>({
-    status: 'carregando',
-    lastSyncedAt: null,
-    error: null,
-  });
   const dataRef = useRef(data);
   const draftsRef = useRef(drafts);
   const syncChain = useRef<Promise<void>>(Promise.resolve());
@@ -207,7 +204,6 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
 
   /** Envia a fila e baixa as novidades do banco. Nunca lança erro. */
   const runSync = useCallback(async () => {
-    setSyncInfo((s) => ({ ...s, status: 'sincronizando' }));
     try {
       // 1) Envia o que está na fila.
       const snapshot = dataRef.current;
@@ -244,15 +240,9 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
         }
         return latest === prev.lastPulledAt && next === prev ? prev : { ...next, lastPulledAt: latest };
       });
-
-      setSyncInfo({ status: 'sincronizado', lastSyncedAt: new Date().toISOString(), error: null });
     } catch (err) {
-      console.warn('Falha na sincronização', err);
-      setSyncInfo((s) => ({
-        ...s,
-        status: isNetworkError(err) ? 'offline' : 'erro',
-        error: err instanceof Error ? err.message : String(err),
-      }));
+      // Sem internet é esperado: a fila fica guardada e é enviada na próxima tentativa.
+      if (!isNetworkError(err)) console.warn('Falha na sincronização', err);
     }
   }, [update, userId]);
 
@@ -355,7 +345,6 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       workouts,
       sessions,
       drafts,
-      sync: { ...syncInfo, pending: data.outbox.length },
       syncNow,
       pendingNow: () => dataRef.current.outbox.length,
       getExercise: (id) => byId.get(id),
@@ -364,6 +353,17 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
         const exercise: Exercise = { id: 'custom-' + newId(), name: name.trim(), group, custom: true };
         commit('custom_exercises', exercise);
         return exercise;
+      },
+
+      deleteCustomExercise: (id) => {
+        const existing = dataRef.current.customExercises.find((e) => e.id === id);
+        if (!existing) return;
+        commit('custom_exercises', { ...existing, deleted: true });
+        for (const workout of dataRef.current.workouts) {
+          if (!workout.deleted && workout.exerciseIds.includes(id)) {
+            commit('workouts', { ...workout, exerciseIds: workout.exerciseIds.filter((x) => x !== id) });
+          }
+        }
       },
 
       saveWorkout: ({ id, name, exerciseIds }) => {
@@ -392,10 +392,20 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
         if (existing) commit('sessions', { ...existing, deleted: true });
       },
 
+      deleteAllSessions: () => {
+        // Uma única gravação para todos os registros, em vez de uma por registro.
+        update((prev) =>
+          prev.sessions
+            .filter((s) => !s.deleted)
+            .reduce((next, s) => change(next, 'sessions', { ...s, deleted: true }), prev)
+        );
+        scheduleSync();
+      },
+
       saveDraft,
       clearDraft,
     };
-  }, [data, drafts, loaded, syncInfo, syncNow, commit, saveDraft, clearDraft]);
+  }, [data, drafts, loaded, syncNow, commit, update, scheduleSync, saveDraft, clearDraft]);
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
 }

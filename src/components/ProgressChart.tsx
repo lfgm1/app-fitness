@@ -9,6 +9,7 @@ import type { LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
 
 import { formatShortDate, formatWeight } from '@/lib/format';
+import { kgToUnit, useUnits } from '@/lib/units';
 import type { HistoryEntry } from '@/lib/progress';
 import { colors, statusColors } from '@/theme';
 
@@ -23,6 +24,7 @@ type Props = {
 
 export function ProgressChart({ entries, selectedIndex, onSelect }: Props) {
   const [width, setWidth] = useState(0);
+  const { unit } = useUnits();
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
 
   const weights = entries.map((e) => e.best.weight);
@@ -72,7 +74,7 @@ export function ProgressChart({ entries, selectedIndex, onSelect }: Props) {
               fill={colors.textFaint}
               fontSize={11}
               textAnchor="end">
-              {formatWeight(Math.round(t * 2) / 2)}
+              {formatWeight(Math.round(kgToUnit(t, unit) * 2) / 2)}
             </SvgText>
           ))}
           {dateIdx.map((i) => (

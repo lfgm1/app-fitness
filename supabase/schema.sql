@@ -107,3 +107,104 @@ create policy "Dono acessa seus registros" on public.sessions
   for all to authenticated
   using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
+
+-- ---------------------------------------------------------------------
+-- Perfil da pessoa (nome, nascimento e dados para metas e estimativas)
+-- ---------------------------------------------------------------------
+create table if not exists public.profiles (
+  user_id              uuid        primary key references auth.users (id) on delete cascade,
+  name                 text        check (char_length(name) between 1 and 100),
+  birth_date           date        check (birth_date between '1900-01-01' and current_date),
+  sex                  text        check (sex in ('male', 'female', 'unspecified')),
+  height_cm            smallint    check (height_cm between 100 and 250),
+  weight_kg            numeric(5,1) check (weight_kg between 30 and 300),
+  goal                 text        check (goal in ('gain_muscle', 'lose_fat', 'strength', 'health')),
+  experience           text        check (experience in ('beginner', 'intermediate', 'advanced')),
+  daily_step_goal      integer     check (daily_step_goal >= 1000),
+  onboarding_completed boolean     not null default false,
+  created_at           timestamptz not null default now(),
+  updated_at           timestamptz not null default now()
+);
+
+drop trigger if exists profiles_updated_at on public.profiles;
+create trigger profiles_updated_at before update on public.profiles
+  for each row execute function public.set_updated_at();
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "Dono le seu perfil" on public.profiles;
+create policy "Dono le seu perfil" on public.profiles
+  for select to authenticated using ((select auth.uid()) = user_id);
+
+drop policy if exists "Dono cria seu perfil" on public.profiles;
+create policy "Dono cria seu perfil" on public.profiles
+  for insert to authenticated with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Dono altera seu perfil" on public.profiles;
+create policy "Dono altera seu perfil" on public.profiles
+  for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+-- Cria o perfil quando a conta é criada, com o nome e a data de nascimento
+-- informados no cadastro (ou o nome vindo do Google).
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_name  text := nullif(trim(coalesce(new.raw_user_meta_data ->> 'name', new.raw_user_meta_data ->> 'full_name')), '');
+  v_birth date;
+begin
+  begin
+    v_birth := (new.raw_user_meta_data ->> 'birth_date')::date;
+    if v_birth < date '1900-01-01' or v_birth > current_date then
+      v_birth := null;
+    end if;
+  exception when others then
+    v_birth := null;
+  end;
+
+  insert into public.profiles (user_id, name, birth_date)
+  values (new.id, left(v_name, 100), v_birth)
+  on conflict (user_id) do nothing;
+  return new;
+end;
+$$;
+
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- ---------------------------------------------------------------------
+-- Preferências (unidade de peso e séries padrão) e exclusão de conta
+-- ---------------------------------------------------------------------
+alter table public.profiles
+  add column if not exists weight_unit text not null default 'kg' check (weight_unit in ('kg', 'lb')),
+  add column if not exists default_sets smallint not null default 2 check (default_sets between 1 and 10);
+
+-- Exclui a conta de quem está logado. Os dados (perfil, treinos, registros e
+-- exercícios) são apagados junto, pelas chaves estrangeiras "on delete cascade".
+-- Pode ser chamada por usuários logados de propósito: só apaga a própria conta.
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user uuid := auth.uid();
+begin
+  if v_user is null then
+    raise exception 'Not authenticated';
+  end if;
+  delete from auth.users where id = v_user;
+end;
+$$;
+
+revoke execute on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;

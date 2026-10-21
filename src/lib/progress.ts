@@ -78,13 +78,18 @@ export function exerciseHistory(sessions: Session[], exerciseId: string): Histor
   return result;
 }
 
-/** As séries do último registro de um exercício antes de uma data (ou o último de todos). */
-export function previousSets(sessions: Session[], exerciseId: string, beforeDate?: string) {
+/** O último registro de um exercício antes de uma data (ou o último de todos): data e séries. */
+export function previousRecord(sessions: Session[], exerciseId: string, beforeDate?: string) {
   const sorted = [...sessions].sort(byDate).reverse();
   for (const session of sorted) {
     if (beforeDate && session.date >= beforeDate) continue;
     const ex = session.exercises.find((e) => e.exerciseId === exerciseId);
-    if (ex && ex.sets.length > 0) return ex.sets;
+    if (ex && ex.sets.length > 0) return { date: session.date, sets: ex.sets };
   }
   return undefined;
+}
+
+/** As séries do último registro de um exercício antes de uma data (ou o último de todos). */
+export function previousSets(sessions: Session[], exerciseId: string, beforeDate?: string) {
+  return previousRecord(sessions, exerciseId, beforeDate)?.sets;
 }

@@ -7,8 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui';
 import { authErrorMessage, useAuth } from '@/data/auth';
+import { ageFrom, maskDate, parseBirthDate } from '@/lib/format';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { colors, radius } from '@/theme';
+
+const MIN_AGE = 13;
 
 type Mode = 'entrar' | 'criar' | 'confirmar' | 'recuperar' | 'nova-senha';
 
@@ -26,6 +29,8 @@ export function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [birth, setBirth] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,11 +60,24 @@ export function LoginScreen() {
 
   const validEmail = /\S+@\S+\.\S+/.test(email.trim());
 
+  // Cadastro: nome e data de nascimento (idade mínima de 13 anos).
+  const birthIso = parseBirthDate(birth);
+  const age = birthIso ? ageFrom(birthIso) : null;
+  const birthError =
+    birth.length < 10
+      ? null
+      : !birthIso || age === null || age > 110
+        ? 'Data de nascimento inválida.'
+        : age < MIN_AGE
+          ? `É preciso ter pelo menos ${MIN_AGE} anos.`
+          : null;
+  const validSignup = name.trim().length >= 2 && birthIso !== null && birthError === null;
+
   const submit = {
     entrar: () => run(() => auth.signIn(email, password)),
     criar: () =>
       run(async () => {
-        const needsConfirmation = await auth.signUp(email, password);
+        const needsConfirmation = await auth.signUp(email, password, name, birthIso!);
         if (needsConfirmation) go('confirmar');
       }),
     confirmar: () => run(() => auth.confirmEmail(email, code)),
@@ -77,7 +95,8 @@ export function LoginScreen() {
     validEmail &&
     (mode === 'recuperar' ||
       (mode === 'confirmar' && code.trim().length >= 6) ||
-      ((mode === 'entrar' || mode === 'criar') && password.length >= 6) ||
+      (mode === 'entrar' && password.length >= 6) ||
+      (mode === 'criar' && password.length >= 6 && validSignup) ||
       (mode === 'nova-senha' && code.trim().length >= 6 && password.length >= 6));
 
   const submitLabel = {
@@ -110,6 +129,31 @@ export function LoginScreen() {
         )}
 
         <View style={styles.form}>
+          {mode === 'criar' && (
+            <>
+              <Field
+                icon="person-outline"
+                value={name}
+                onChangeText={setName}
+                placeholder="Nome"
+                autoCapitalize="words"
+                autoComplete="name"
+                textContentType="name"
+                maxLength={100}
+              />
+              <Field
+                icon="calendar-outline"
+                value={birth}
+                onChangeText={(v) => setBirth(maskDate(v))}
+                placeholder="Data de nascimento (DD/MM/AAAA)"
+                keyboardType="number-pad"
+                autoComplete="birthdate-full"
+                maxLength={10}
+              />
+              {birthError && <Text style={styles.fieldError}>{birthError}</Text>}
+            </>
+          )}
+
           {mode !== 'confirmar' && mode !== 'nova-senha' && (
             <Field
               icon="mail-outline"
@@ -297,6 +341,7 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, minWidth: 0, color: colors.text, fontSize: 16, paddingVertical: 14 },
   error: { color: colors.danger, fontSize: 14, lineHeight: 20 },
+  fieldError: { color: colors.danger, fontSize: 13, marginTop: -4, paddingHorizontal: 4 },
   info: { color: colors.primary, fontSize: 14 },
   linkWrap: { alignSelf: 'center', paddingVertical: 6 },
   link: { color: colors.primary, fontWeight: '700', fontSize: 14 },

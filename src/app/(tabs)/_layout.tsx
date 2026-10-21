@@ -1,36 +1,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs, router } from 'expo-router';
-import { Pressable, View } from 'react-native';
+import { Pressable } from 'react-native';
 
-import { useStore } from '@/data/store';
-import { colors, statusColors } from '@/theme';
+import { colors } from '@/theme';
 
-/** Botão da conta no topo; o pontinho avisa se há algo não sincronizado. */
-function AccountButton() {
-  const { sync } = useStore();
-  const warn = sync.pending > 0 || sync.status === 'offline' || sync.status === 'erro';
+function SettingsButton() {
   return (
     <Pressable
-      onPress={() => router.push('/conta')}
+      onPress={() => router.push('/configuracoes')}
       hitSlop={10}
-      accessibilityLabel="Minha conta"
+      accessibilityLabel="Configurações"
       style={{ marginRight: 16 }}>
-      <Ionicons name="person-circle-outline" size={28} color={colors.textMuted} />
-      {warn && (
-        <View
-          style={{
-            position: 'absolute',
-            top: 1,
-            right: 1,
-            width: 9,
-            height: 9,
-            borderRadius: 5,
-            backgroundColor: sync.status === 'erro' ? colors.danger : statusColors.manteve,
-            borderWidth: 1.5,
-            borderColor: colors.background,
-          }}
-        />
-      )}
+      <Ionicons name="settings-outline" size={24} color={colors.textMuted} />
     </Pressable>
   );
 }
@@ -43,7 +24,7 @@ export default function TabsLayout() {
         headerTintColor: colors.text,
         headerTitleStyle: { fontWeight: '800', fontSize: 22 },
         headerShadowVisible: false,
-        headerRight: () => <AccountButton />,
+        headerRight: () => <SettingsButton />,
         sceneStyle: { backgroundColor: colors.background },
         tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
         tabBarActiveTintColor: colors.primary,
@@ -51,6 +32,13 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen
         name="index"
+        options={{
+          title: 'Início',
+          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color as string} />,
+        }}
+      />
+      <Tabs.Screen
+        name="treinos"
         options={{
           title: 'Treinos',
           tabBarIcon: ({ color, size }) => <Ionicons name="barbell" size={size} color={color as string} />,
@@ -61,6 +49,13 @@ export default function TabsLayout() {
         options={{
           title: 'Progresso',
           tabBarIcon: ({ color, size }) => <Ionicons name="trending-up" size={size} color={color as string} />,
+        }}
+      />
+      <Tabs.Screen
+        name="perfil"
+        options={{
+          title: 'Perfil',
+          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color as string} />,
         }}
       />
     </Tabs>

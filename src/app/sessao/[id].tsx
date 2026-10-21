@@ -2,9 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ExerciseImage } from '@/components/ExerciseImage';
 import { Button, Card, EmptyState, StatusBadge } from '@/components/ui';
 import { useStore } from '@/data/store';
-import { confirmAction, formatDateLong, formatSet } from '@/lib/format';
+import { confirmAction, formatDateLong } from '@/lib/format';
+import { useUnits } from '@/lib/units';
 import { STATUS_INFO, compareSets, previousSets } from '@/lib/progress';
 import type { ProgressStatus } from '@/lib/progress';
 import { colors, statusColors } from '@/theme';
@@ -12,6 +14,7 @@ import { colors, statusColors } from '@/theme';
 export default function SessionScreen() {
   const { id, novo } = useLocalSearchParams<{ id: string; novo?: string }>();
   const { sessions, getExercise, deleteSession } = useStore();
+  const units = useUnits();
   const session = sessions.find((s) => s.id === id);
 
   if (!session) {
@@ -60,13 +63,14 @@ export default function SessionScreen() {
           onPress={() => router.push({ pathname: '/exercicio/[id]', params: { id: ex.exerciseId } })}>
           <Card style={{ gap: 10 }}>
             <View style={styles.exHeader}>
+              <ExerciseImage exerciseId={ex.exerciseId} size={40} />
               <Text style={styles.exName}>{getExercise(ex.exerciseId)?.name ?? 'Exercício removido'}</Text>
               <StatusBadge status={ex.status} />
             </View>
             {ex.sets.map((set, i) => (
               <View key={i} style={styles.setRow}>
                 <Text style={styles.setLabel}>Série {i + 1}</Text>
-                <Text style={styles.setValue}>{formatSet(set)}</Text>
+                <Text style={styles.setValue}>{units.set(set)}</Text>
               </View>
             ))}
             <Text style={[styles.statusText, { color: statusColors[ex.status] }]}>

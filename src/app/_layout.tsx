@@ -1,9 +1,12 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LoginScreen } from '@/components/LoginScreen';
+import { ProfileForm } from '@/components/ProfileForm';
 import { AuthProvider, useAuth } from '@/data/auth';
+import { ProfileProvider, useProfile } from '@/data/profile';
 import { StoreProvider, useStore } from '@/data/store';
 import { colors } from '@/theme';
 
@@ -17,7 +20,18 @@ function Loading() {
 
 function Navigator() {
   const { loaded } = useStore();
-  if (!loaded) return <Loading />;
+  const { profile, loaded: profileLoaded, saveProfile } = useProfile();
+  if (!loaded || (!profileLoaded && !profile)) return <Loading />;
+
+  // Logo após criar a conta (ou no primeiro login com Google): completar o perfil.
+  if (profile && !profile.onboardingCompleted) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <ProfileForm initial={profile} mode="onboarding" onSave={saveProfile} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <Stack
       screenOptions={{
@@ -33,7 +47,11 @@ function Navigator() {
       <Stack.Screen name="registrar/[id]" options={{ title: 'Registrar treino' }} />
       <Stack.Screen name="sessao/[id]" options={{ title: 'Treino realizado' }} />
       <Stack.Screen name="exercicio/[id]" options={{ title: 'Progressão' }} />
-      <Stack.Screen name="conta" options={{ title: 'Minha conta' }} />
+      <Stack.Screen name="configuracoes" options={{ title: 'Configurações' }} />
+      <Stack.Screen name="editar-perfil" options={{ title: 'Editar perfil' }} />
+      <Stack.Screen name="alterar-senha" options={{ title: 'Alterar senha' }} />
+      <Stack.Screen name="excluir-conta" options={{ title: 'Excluir conta' }} />
+      <Stack.Screen name="privacidade" options={{ title: 'Política de privacidade' }} />
     </Stack>
   );
 }
@@ -45,7 +63,9 @@ function AuthGate() {
   if (!session || recoveringPassword) return <LoginScreen />;
   return (
     <StoreProvider key={session.user.id} userId={session.user.id}>
-      <Navigator />
+      <ProfileProvider key={session.user.id} userId={session.user.id}>
+        <Navigator />
+      </ProfileProvider>
     </StoreProvider>
   );
 }

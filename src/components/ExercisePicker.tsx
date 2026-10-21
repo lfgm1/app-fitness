@@ -3,10 +3,12 @@ import { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ExerciseImage } from '@/components/ExerciseImage';
 import { Button } from '@/components/ui';
 import { MUSCLE_GROUPS, normalizeSearch } from '@/data/exercises';
-import type { MuscleGroup } from '@/data/exercises';
+import type { Exercise, MuscleGroup } from '@/data/exercises';
 import { useStore } from '@/data/store';
+import { confirmAction } from '@/lib/format';
 import { colors, radius } from '@/theme';
 
 type Props = {
@@ -17,7 +19,7 @@ type Props = {
 };
 
 export function ExercisePicker({ visible, selectedIds, onToggle, onClose }: Props) {
-  const { exercises, addCustomExercise } = useStore();
+  const { exercises, workouts, addCustomExercise, deleteCustomExercise } = useStore();
   const [search, setSearch] = useState('');
   const [group, setGroup] = useState<MuscleGroup | null>(null);
   const [creating, setCreating] = useState(false);
@@ -35,6 +37,23 @@ export function ExercisePicker({ visible, selectedIds, onToggle, onClose }: Prop
     setNewName(search);
     setNewGroup(group ?? 'Peito');
     setCreating(true);
+  }
+
+  function removeExercise(exercise: Exercise) {
+    const usedIn = workouts.filter((w) => w.exerciseIds.includes(exercise.id)).length;
+    const impact =
+      usedIn > 0
+        ? `Ele será removido de ${usedIn} treino${usedIn === 1 ? '' : 's'} montado${usedIn === 1 ? '' : 's'}. `
+        : '';
+    confirmAction(
+      'Excluir exercício?',
+      `"${exercise.name}" será excluído. ${impact}Os registros que você já fez continuam no histórico.`,
+      'Excluir',
+      () => {
+        if (selectedIds.includes(exercise.id)) onToggle(exercise.id);
+        deleteCustomExercise(exercise.id);
+      }
+    );
   }
 
   function createExercise() {
@@ -119,6 +138,7 @@ export function ExercisePicker({ visible, selectedIds, onToggle, onClose }: Prop
                   <Pressable
                     style={[styles.row, selected && styles.rowSelected]}
                     onPress={() => onToggle(item.id)}>
+                    <ExerciseImage exerciseId={item.id} size={56} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.rowName}>{item.name}</Text>
                       <Text style={styles.rowGroup}>
@@ -126,6 +146,14 @@ export function ExercisePicker({ visible, selectedIds, onToggle, onClose }: Prop
                         {item.custom ? ' · personalizado' : ''}
                       </Text>
                     </View>
+                    {item.custom && (
+                      <Pressable
+                        onPress={() => removeExercise(item)}
+                        hitSlop={8}
+                        accessibilityLabel={`Excluir exercício ${item.name}`}>
+                        <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                      </Pressable>
+                    )}
                     <Ionicons
                       name={selected ? 'checkmark-circle' : 'ellipse-outline'}
                       size={24}
@@ -192,6 +220,7 @@ const styles = StyleSheet.create({
   createRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
   createText: { color: colors.primary, fontSize: 16, fontWeight: '700' },
   row: {
+    gap: 12,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,

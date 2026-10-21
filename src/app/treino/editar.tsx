@@ -3,6 +3,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { ExerciseImage } from '@/components/ExerciseImage';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { Button, Card, SectionTitle } from '@/components/ui';
 import { useStore } from '@/data/store';
@@ -76,6 +77,7 @@ export default function EditWorkoutScreen() {
               return (
                 <View key={exerciseId} style={[styles.row, index > 0 && styles.rowBorder]}>
                   <Text style={styles.order}>{index + 1}</Text>
+                  <ExerciseImage exerciseId={exerciseId} size={44} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.exName}>{exercise?.name ?? 'Exercício removido'}</Text>
                     <Text style={styles.exGroup}>{exercise?.group}</Text>
