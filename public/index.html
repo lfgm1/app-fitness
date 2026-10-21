@@ -38,16 +38,25 @@
 
       /* App instalado na tela de início (iPhone): a navegação não recebe as "safe areas" no navegador,
          então reservamos aqui o espaço do relógio/bateria (topo) e da barrinha de gestos (embaixo).
-         100vh = altura total da tela (o 100% do iPhone nesse modo é menor e cortava a barra de abas). */
+         O app fica preso às bordas da tela (position: fixed), porque 100% e 100vh têm alturas erradas
+         nesse modo do iPhone e cortavam a barra de abas. O espaço da barrinha de gestos fica na cor
+         da barra de abas (#181A1F), para parecer uma barra só. */
       @media (display-mode: standalone) {
-        html,
-        body {
-          height: 100vh;
-        }
         #root {
+          position: fixed;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          left: 0;
+          height: auto;
           box-sizing: border-box;
           padding-top: env(safe-area-inset-top);
           padding-bottom: env(safe-area-inset-bottom);
+          background: linear-gradient(
+            to top,
+            #181a1f env(safe-area-inset-bottom),
+            #0e0f12 env(safe-area-inset-bottom)
+          );
         }
       }
 
