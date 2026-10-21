@@ -13,9 +13,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Gains Club" />
-    <!-- Barra de status sólida: o app começa abaixo do relógio/bateria. (Com "black-translucent" o iPhone
-         sobrepõe o topo do app e calcula a altura da tela menor, cortando a barra de abas.) -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <!-- O app ocupa a tela toda, por baixo do relógio/bateria; o espaço deles é reservado no CSS abaixo. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
     <style id="expo-reset">
@@ -35,6 +34,30 @@
         display: flex;
         height: 100%;
         flex: 1;
+      }
+
+      /* App instalado na tela de início (iPhone): a navegação não recebe as "safe areas" no navegador,
+         então reservamos aqui o espaço do relógio/bateria (topo) e da barrinha de gestos (embaixo).
+         100vh = altura total da tela (o 100% do iPhone nesse modo é menor e cortava a barra de abas). */
+      @media (display-mode: standalone) {
+        html,
+        body {
+          height: 100vh;
+        }
+        #root {
+          box-sizing: border-box;
+          padding-top: env(safe-area-inset-top);
+          padding-bottom: env(safe-area-inset-bottom);
+        }
+      }
+
+      /* Sem o contorno azul ao tocar num campo (o campo já tem borda própria) nem o "flash" cinza ao tocar. */
+      input,
+      textarea {
+        outline: none;
+      }
+      * {
+        -webkit-tap-highlight-color: transparent;
       }
     </style>
   </head>
