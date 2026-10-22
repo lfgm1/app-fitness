@@ -5,6 +5,7 @@
 import { Platform, Share } from 'react-native';
 
 import type { FrankPhase } from '@/lib/frank';
+import { liveStreak } from '@/lib/streak';
 import { supabase } from '@/lib/supabase';
 
 /** Quem vê o perfil. "nobody": ninguém vê o perfil nem acha pelo @ (o nome só aparece nas conversas). */
@@ -36,6 +37,10 @@ export type SocialProfile = {
   streakExpiresAt: string | null;
   /** Mostra para os amigos quando está online (e o treino em andamento). */
   showOnline: boolean;
+  /** Participa do ranking de passos do dia entre amigos. */
+  shareSteps: boolean;
+  /** Aparece no ranking geral de passos (todos os usuários). */
+  stepsPublic: boolean;
 };
 
 export type Friendship = {
@@ -102,6 +107,8 @@ export function toProfile(row: Row): SocialProfile {
     streakWeeks: (row.streak_weeks as number) ?? 0,
     streakExpiresAt: (row.streak_expires_at as string) ?? null,
     showOnline: (row.show_online as boolean) ?? true,
+    shareSteps: (row.share_steps as boolean) ?? false,
+    stepsPublic: (row.steps_public as boolean) ?? false,
   };
 }
 
@@ -555,6 +562,58 @@ export async function getFriendsPresence(): Promise<Record<string, Presence>> {
 /** Liga ou desliga "Mostrar quando estou online". */
 export async function setShowOnline(userId: string, on: boolean) {
   const { error } = await supabase.from('social_profiles').update({ show_online: on }).eq('user_id', userId);
+  fail(error);
+}
+
+/** Uma linha do ranking de passos do dia. */
+export type StepsRankingRow = {
+  userId: string;
+  displayName: string;
+  avatar: string | null;
+  streakWeeks: number;
+  steps: number;
+  /** Posição no ranking (empates dividem a posição). */
+  position: number;
+};
+
+/** Manda meus passos de cada dia (até 7) para o ranking (o banco ignora se eu não participo). */
+export async function reportSteps(days: { date: string; steps: number }[]) {
+  const { error } = await supabase.rpc('report_steps', {
+    p_days: days.map((d) => d.date),
+    p_steps: days.map((d) => Math.round(d.steps)),
+  });
+  fail(error);
+}
+
+/**
+ * Ranking de passos de um período (o dia ou a semana, até 7 dias).
+ * amigos: eu e os amigos que participam. geral: os 50 primeiros de quem aparece no geral, e a minha posição.
+ */
+export async function getStepsRanking(from: string, to: string, scope: 'amigos' | 'geral'): Promise<StepsRankingRow[]> {
+  const { data, error } = await supabase.rpc(scope === 'geral' ? 'steps_ranking_global' : 'steps_ranking', {
+    p_from: from,
+    p_to: to,
+  });
+  fail(error);
+  return ((data ?? []) as Row[]).map((r, i) => ({
+    position: (r.rank_position as number) ?? i + 1,
+    userId: r.user_id as string,
+    displayName: (r.display_name as string) ?? 'Atleta',
+    avatar: (r.avatar as string) ?? null,
+    streakWeeks: liveStreak((r.streak_weeks as number) ?? 0, (r.streak_expires_at as string) ?? null),
+    steps: (r.steps as number) ?? 0,
+  }));
+}
+
+/** Liga ou desliga "Aparecer no ranking geral". */
+export async function setStepsPublic(on: boolean) {
+  const { error } = await supabase.rpc('set_steps_public', { p_on: on });
+  fail(error);
+}
+
+/** Entra ou sai do ranking de passos (saindo, os passos já enviados são apagados). */
+export async function setShareSteps(on: boolean) {
+  const { error } = await supabase.rpc('set_share_steps', { p_on: on });
   fail(error);
 }
 

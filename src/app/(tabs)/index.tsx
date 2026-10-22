@@ -7,6 +7,7 @@ import { ExerciseImage } from '@/components/ExerciseImage';
 import { Frank } from '@/components/Frank';
 import { NewsCard } from '@/components/NewsCard';
 import { StartLineArt } from '@/components/StartLineArt';
+import { StepsCard } from '@/components/StepsCard';
 import { StreakStamp } from '@/components/social/StreakStamp';
 import { Button, Card, PRBadge, SectionTitle, StatusBadge } from '@/components/ui';
 import { isTimedExercise } from '@/data/exercises';
@@ -189,6 +190,8 @@ export default function HomeScreen() {
             </Card>
           )}
 
+          <StepsCard goal={profile?.dailyStepGoal ?? null} />
+
           <SectionTitle>Sua semana</SectionTitle>
           <Card style={{ gap: 14 }}>
             <View style={styles.streakRow}>
@@ -198,7 +201,7 @@ export default function HomeScreen() {
                   {streak.weeks > 0 ? streak.level.name : 'Sem streak ainda'}
                 </Text>
               </View>
-              <StreakStamp weeks={streak.weeks} size="large" />
+              <StreakStamp weeks={streak.weeks} size="large" name={profile?.name ?? undefined} />
             </View>
             <Text style={styles.weekCount}>
               <Text style={{ color: colors.primary }}>

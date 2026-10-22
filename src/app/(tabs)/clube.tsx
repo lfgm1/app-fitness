@@ -330,7 +330,12 @@ export default function ClubScreen() {
                               <Text style={styles.muted}>{key === 'online' ? 'Online' : 'Offline'}</Text>
                             )}
                           </View>
-                          <StreakStamp weeks={weeks} />
+                          <StreakStamp
+                            weeks={weeks}
+                            who={person?.displayName ?? 'Seu amigo'}
+                            name={person?.displayName}
+                            icon={person?.avatar}
+                          />
                         </Card>
                       </Pressable>
                     );

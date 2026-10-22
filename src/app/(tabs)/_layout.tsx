@@ -59,6 +59,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="passos"
+        options={{
+          title: 'Passos',
+          tabBarIcon: ({ color, size }) => <Ionicons name="footsteps" size={size} color={color as string} />,
+        }}
+      />
+      <Tabs.Screen
         name="clube"
         options={{
           title: 'Social',

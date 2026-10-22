@@ -8,16 +8,26 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gainsclub.app",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "x-apple-health"
+        ]
+      }
     },
     "android": {
+      "package": "com.gainsclub.app",
       "adaptiveIcon": {
         "backgroundColor": "#C6F432",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.health.READ_STEPS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -42,7 +52,26 @@
           "imageWidth": 180
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "O Gains Club lê seus passos do Apple Saúde para mostrar sua contagem diária e a meta de passos.",
+          "NSHealthUpdateUsageDescription": false,
+          "background": false
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "minSdkVersion": 26
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

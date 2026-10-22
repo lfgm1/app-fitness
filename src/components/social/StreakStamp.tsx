@@ -1,24 +1,44 @@
-// Selo do streak ("18 SEM"): carimbo inclinado na cor do nível do fogo. Usado na lista de amigos e
-// nos perfis. Sem streak, não mostra nada.
+// Selo do streak ("18 SEM"): carimbo inclinado na cor do nível do fogo. Usado na lista de amigos,
+// nos perfis e na Início. Tocando, abre a explicação do streak e dos níveis. Sem streak, não mostra nada.
 
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
+import { StreakInfo } from '@/components/social/StreakInfo';
 import { streakLevel } from '@/lib/streak';
 import { colors, fonts } from '@/theme';
 
-type Props = { weeks: number; size?: 'small' | 'large' };
+type Props = {
+  weeks: number;
+  size?: 'small' | 'large';
+  /** De quem é o streak: "Você" ou o nome da pessoa (aparece na explicação). */
+  who?: string;
+  /** Nome e ícone da pessoa, para os exemplos de fogo da explicação. */
+  name?: string;
+  icon?: string | null;
+  /** Só o desenho, sem abrir a explicação (ex.: no card de novidade). */
+  decorative?: boolean;
+};
 
-export function StreakStamp({ weeks, size = 'small' }: Props) {
+export function StreakStamp({ weeks, size = 'small', who = 'Você', name, icon, decorative = false }: Props) {
+  const [info, setInfo] = useState(false);
   if (weeks <= 0) return null;
   const color = streakLevel(weeks).color;
   const large = size === 'large';
   return (
-    <View
-      style={[styles.stamp, large && styles.stampLarge, { borderColor: color }]}
-      accessibilityLabel={`${weeks} semanas de streak`}>
-      <Text style={[styles.number, large && styles.numberLarge, { color }]}>{weeks}</Text>
-      <Text style={[styles.label, large && styles.labelLarge, { color }]}>sem</Text>
-    </View>
+    <>
+      <Pressable
+        onPress={() => setInfo(true)}
+        disabled={decorative}
+        hitSlop={6}
+        style={[styles.stamp, large && styles.stampLarge, { borderColor: color }]}
+        accessibilityRole="button"
+        accessibilityLabel={`${weeks} semanas de streak. Ver como funciona`}>
+        <Text style={[styles.number, large && styles.numberLarge, { color }]}>{weeks}</Text>
+        <Text style={[styles.label, large && styles.labelLarge, { color }]}>sem</Text>
+      </Pressable>
+      <StreakInfo visible={info} onClose={() => setInfo(false)} weeks={weeks} who={who} name={name} icon={icon} />
+    </>
   );
 }
 

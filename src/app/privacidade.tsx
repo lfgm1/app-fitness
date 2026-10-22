@@ -2,7 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { colors, fonts } from '@/theme';
 
-const UPDATED_AT = '20 de outubro de 2026';
+const UPDATED_AT = '22 de outubro de 2026';
 
 const SECTIONS: { title: string; paragraphs: string[] }[] = [
   {
@@ -18,6 +18,14 @@ const SECTIONS: { title: string; paragraphs: string[] }[] = [
     paragraphs: [
       'Na aba Social, existe um perfil público com seu @, o nome que você escolher, o Frank da sua fase e um resumo dos números (treinos, recordes e treinos da semana). Você escolhe quem pode ver esse perfil (só amigos e quem está nos seus clubes, ou qualquer pessoa do app) e se o número de recordes aparece. Seus treinos detalhados (cargas e séries) nunca aparecem para os outros.',
       'Mensagens e treinos enviados ficam guardados para que você e as outras pessoas da conversa possam vê-los. Mensagens no privado só são possíveis entre amigos. Você pode apagar suas mensagens, bloquear pessoas e denunciar perfis ou mensagens; as denúncias são analisadas por nós e a pessoa denunciada não fica sabendo quem denunciou.',
+    ],
+  },
+  {
+    title: 'Passos (Apple Saúde e Health Connect)',
+    paragraphs: [
+      'No app para celular, se você autorizar, o Gains Club lê a contagem de passos do Apple Saúde (iPhone) ou do Health Connect (Android) para mostrar seus passos do dia e da semana e comparar com a sua meta. O app só lê os passos: não lê outros dados de saúde e não escreve nada no app de saúde.',
+      'Os passos são lidos na hora e ficam no seu celular. Eles só vão para os nossos servidores se você tocar em "Participar do ranking" na aba Passos: aí enviamos apenas o total de passos de cada dia, que só seus amigos que também participam do ranking veem. Se você ligar "Aparecer no ranking geral", qualquer pessoa do app que participa do ranking vê seu nome, seu ícone e seus totais de passos. Esses totais são apagados depois de 7 dias, e na hora se você sair do ranking.',
+      'Os passos nunca são compartilhados com terceiros nem usados para publicidade. Você pode tirar a permissão a qualquer momento no app Saúde (iPhone) ou no Health Connect (Android).',
     ],
   },
   {
@@ -46,9 +54,7 @@ const SECTIONS: { title: string; paragraphs: string[] }[] = [
   },
   {
     title: 'Alterações nesta política',
-    paragraphs: [
-      'Se esta política mudar, a nova versão será publicada aqui, com a data de atualização.',
-    ],
+    paragraphs: ['Se esta política mudar, a nova versão será publicada aqui, com a data de atualização.'],
   },
 ];
 
@@ -76,6 +82,12 @@ export default function PrivacyPolicyScreen() {
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 20, paddingBottom: 40 },
   updated: { color: colors.textFaint, fontFamily: fonts.regular, fontSize: 13 },
-  title: { color: colors.text, fontSize: 21, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  title: {
+    color: colors.text,
+    fontSize: 21,
+    fontFamily: fonts.display,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   text: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 23 },
 });

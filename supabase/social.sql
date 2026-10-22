@@ -994,3 +994,181 @@ create index if not exists message_hides_message on public.message_hides (messag
 create index if not exists reports_message on public.reports (message_id);
 create index if not exists reports_reporter on public.reports (reporter_id);
 create index if not exists reports_target on public.reports (target_user_id);
+
+-- ---------- Ranking de passos do dia (só entre amigos, só para quem participa) ----------
+-- Os passos ficam no celular. Só quem liga "Participar do ranking" manda o total do dia,
+-- e só vê o ranking quem participa. Ao sair do ranking, os passos guardados são apagados.
+-- Cada dia fica guardado por 7 dias e depois é apagado sozinho.
+alter table public.social_profiles add column if not exists share_steps boolean not null default false;
+
+create table if not exists public.daily_steps (
+  user_id    uuid        not null default auth.uid() references auth.users (id) on delete cascade,
+  day        date        not null,
+  steps      integer     not null check (steps between 0 and 200000),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, day)
+);
+alter table public.daily_steps enable row level security;
+drop policy if exists "meus passos" on public.daily_steps;
+create policy "meus passos" on public.daily_steps for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Manda o total do dia (o dia é o do celular; aceita só ontem, hoje ou amanhã do servidor,
+-- por causa do fuso). Não faz nada se a pessoa não participa do ranking.
+create or replace function public.report_steps(p_day date, p_steps integer)
+returns void language plpgsql security invoker set search_path = '' as $$
+begin
+  if p_day not between current_date - 1 and current_date + 1 then return; end if;
+  if not coalesce((select p.share_steps from public.social_profiles p where p.user_id = auth.uid()), false) then
+    return;
+  end if;
+  insert into public.daily_steps (user_id, day, steps, updated_at)
+  values (auth.uid(), p_day, greatest(0, least(p_steps, 200000)), now())
+  on conflict (user_id, day) do update set steps = excluded.steps, updated_at = now();
+end;
+$$;
+revoke execute on function public.report_steps(date, integer) from public, anon;
+grant execute on function public.report_steps(date, integer) to authenticated;
+
+-- Entra ou sai do ranking. Saindo, apaga os passos já enviados.
+create or replace function public.set_share_steps(p_on boolean)
+returns void language plpgsql security invoker set search_path = '' as $$
+begin
+  update public.social_profiles set share_steps = p_on where user_id = auth.uid();
+  if not p_on then delete from public.daily_steps where user_id = auth.uid(); end if;
+end;
+$$;
+revoke execute on function public.set_share_steps(boolean) from public, anon;
+grant execute on function public.set_share_steps(boolean) to authenticated;
+
+-- Ranking do dia: eu + amigos que participam (sem bloqueados). Vazio se eu não participo.
+create or replace function public.steps_ranking(p_day date)
+returns table (user_id uuid, display_name text, avatar text, streak_weeks integer,
+               streak_expires_at timestamptz, steps integer)
+language sql stable security definer set search_path = '' as $$
+  select p.user_id, p.display_name, p.avatar, p.streak_weeks, p.streak_expires_at, coalesce(s.steps, 0)
+  from public.social_profiles p
+  left join public.daily_steps s on s.user_id = p.user_id and s.day = p_day
+  where p.share_steps
+    and coalesce((select me.share_steps from public.social_profiles me where me.user_id = auth.uid()), false)
+    and (
+      p.user_id = auth.uid()
+      or (private.has_friendship(auth.uid(), p.user_id, true) and not private.is_blocked(auth.uid(), p.user_id))
+    )
+  order by coalesce(s.steps, 0) desc, p.display_name
+  limit 100;
+$$;
+revoke execute on function public.steps_ranking(date) from public, anon;
+grant execute on function public.steps_ranking(date) to authenticated;
+
+-- Limpeza: passos com mais de 7 dias.
+create or replace function private.purge_old_steps()
+returns void language sql set search_path = '' as $$
+  delete from public.daily_steps where day < current_date - 7;
+$$;
+revoke all on function private.purge_old_steps() from public, anon, authenticated;
+select cron.schedule('purge-old-steps', '15 6 * * *', 'select private.purge_old_steps()');
+
+-- ---------- Ranking semanal de passos ----------
+-- O app manda de uma vez os totais dos dias da semana (segunda até hoje), e o ranking soma
+-- um período de até 7 dias (o dia de hoje ou a semana). Substitui report_steps e steps_ranking(date).
+drop function if exists public.report_steps(date, integer);
+drop function if exists public.steps_ranking(date);
+
+-- Totais por dia (aceita só da última semana até amanhã do servidor, por causa do fuso).
+-- Não faz nada se a pessoa não participa do ranking.
+create or replace function public.report_steps(p_days date[], p_steps integer[])
+returns void language plpgsql security invoker set search_path = '' as $$
+begin
+  if not coalesce((select p.share_steps from public.social_profiles p where p.user_id = auth.uid()), false) then
+    return;
+  end if;
+  insert into public.daily_steps (user_id, day, steps, updated_at)
+  select auth.uid(), d.day, greatest(0, least(coalesce(d.steps, 0), 200000)), now()
+  from unnest(p_days[1:7], p_steps[1:7]) as d(day, steps)
+  where d.day between current_date - 7 and current_date + 1
+  on conflict (user_id, day) do update set steps = excluded.steps, updated_at = now();
+end;
+$$;
+revoke execute on function public.report_steps(date[], integer[]) from public, anon;
+grant execute on function public.report_steps(date[], integer[]) to authenticated;
+
+-- Ranking de um período (de p_from a p_to, até 7 dias): eu + amigos que participam (sem bloqueados).
+-- Vazio se eu não participo.
+create or replace function public.steps_ranking(p_from date, p_to date)
+returns table (user_id uuid, display_name text, avatar text, streak_weeks integer,
+               streak_expires_at timestamptz, steps integer)
+language sql stable security definer set search_path = '' as $$
+  select p.user_id, p.display_name, p.avatar, p.streak_weeks, p.streak_expires_at,
+         coalesce(sum(s.steps), 0)::integer as total
+  from public.social_profiles p
+  left join public.daily_steps s on s.user_id = p.user_id and s.day between p_from and p_to
+  where p.share_steps
+    and p_to >= p_from and p_to - p_from <= 6
+    and coalesce((select me.share_steps from public.social_profiles me where me.user_id = auth.uid()), false)
+    and (
+      p.user_id = auth.uid()
+      or (private.has_friendship(auth.uid(), p.user_id, true) and not private.is_blocked(auth.uid(), p.user_id))
+    )
+  group by p.user_id, p.display_name, p.avatar, p.streak_weeks, p.streak_expires_at
+  order by total desc, p.display_name
+  limit 100;
+$$;
+revoke execute on function public.steps_ranking(date, date) from public, anon;
+grant execute on function public.steps_ranking(date, date) to authenticated;
+
+-- ---------- Ranking geral de passos (todos os usuários) ----------
+-- Separado do ranking entre amigos: só aparece quem participa do ranking E ligou
+-- "Aparecer no ranking geral" (e não deixou o perfil como "ninguém"). Mostra nome, ícone e passos.
+-- Para ver o ranking geral, a pessoa precisa participar do ranking (mesmo sem aparecer no geral).
+alter table public.social_profiles add column if not exists steps_public boolean not null default false;
+
+-- Saindo do ranking, sai também do geral.
+create or replace function public.set_share_steps(p_on boolean)
+returns void language plpgsql security invoker set search_path = '' as $$
+begin
+  update public.social_profiles
+  set share_steps = p_on, steps_public = case when p_on then steps_public else false end
+  where user_id = auth.uid();
+  if not p_on then delete from public.daily_steps where user_id = auth.uid(); end if;
+end;
+$$;
+
+-- Liga/desliga "Aparecer no ranking geral" (só vale para quem participa do ranking).
+create or replace function public.set_steps_public(p_on boolean)
+returns void language sql security invoker set search_path = '' as $$
+  update public.social_profiles set steps_public = p_on and share_steps where user_id = auth.uid();
+$$;
+revoke execute on function public.set_steps_public(boolean) from public, anon;
+grant execute on function public.set_steps_public(boolean) to authenticated;
+
+-- Os 50 primeiros do período (até 7 dias) e a minha posição, mesmo se eu estiver fora dos 50.
+-- Quem tem 0 passos no período não entra (menos eu).
+create or replace function public.steps_ranking_global(p_from date, p_to date)
+returns table (user_id uuid, display_name text, avatar text, streak_weeks integer,
+               streak_expires_at timestamptz, steps integer, rank_position integer)
+language sql stable security definer set search_path = '' as $$
+  with totals as (
+    select p.user_id, p.display_name, p.avatar, p.streak_weeks, p.streak_expires_at,
+           coalesce(sum(s.steps), 0)::integer as total
+    from public.social_profiles p
+    left join public.daily_steps s on s.user_id = p.user_id and s.day between p_from and p_to
+    where p.share_steps and p.steps_public and p.visibility <> 'nobody'
+      and not private.is_blocked(auth.uid(), p.user_id)
+    group by p.user_id, p.display_name, p.avatar, p.streak_weeks, p.streak_expires_at
+  ),
+  ranked as (
+    select t.*, (rank() over (order by t.total desc))::integer as pos
+    from totals t
+    where t.total > 0 or t.user_id = auth.uid()
+  )
+  select r.user_id, r.display_name, r.avatar, r.streak_weeks, r.streak_expires_at, r.total, r.pos
+  from ranked r
+  where (r.pos <= 50 or r.user_id = auth.uid())
+    and p_to >= p_from and p_to - p_from <= 6
+    and coalesce((select me.share_steps from public.social_profiles me where me.user_id = auth.uid()), false)
+  order by r.pos, r.display_name
+  limit 51;
+$$;
+revoke execute on function public.steps_ranking_global(date, date) from public, anon;
+grant execute on function public.steps_ranking_global(date, date) to authenticated;

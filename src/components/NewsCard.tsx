@@ -26,7 +26,7 @@ function NewsArtwork({ art }: { art: NewsArt }) {
     // O selo do streak, o mesmo do perfil.
     return (
       <View style={styles.art}>
-        <StreakStamp weeks={10} />
+        <StreakStamp weeks={10} decorative />
       </View>
     );
   }

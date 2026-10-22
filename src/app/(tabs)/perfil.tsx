@@ -90,7 +90,7 @@ export default function ProfileScreen() {
         <Text style={styles.name}>{profile.name ?? 'Sem nome'}</Text>
         {publicProfile && <Text style={styles.username}>@{publicProfile.username}</Text>}
         {publicProfile && publicProfile.visibility !== 'nobody' && (
-          <PhaseTag person={publicProfile} streakWeeks={streak} />
+          <PhaseTag person={publicProfile} streakWeeks={streak} mine />
         )}
         {publicProfile && (
           <Pressable style={styles.codePill} onPress={shareCode} accessibilityLabel="Compartilhar código de amigo">

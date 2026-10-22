@@ -10,7 +10,16 @@ import { FRANK_PHASES } from '@/lib/frank';
 import { colors, fonts, outlineColor } from '@/theme';
 
 /** A fase do Frank e, ao lado, o streak (se tiver fogo). */
-export function PhaseTag({ person, streakWeeks = 0 }: { person: SocialProfile; streakWeeks?: number }) {
+export function PhaseTag({
+  person,
+  streakWeeks = 0,
+  mine = false,
+}: {
+  person: SocialProfile;
+  streakWeeks?: number;
+  /** É o meu perfil (a explicação do streak fala "Você"). */
+  mine?: boolean;
+}) {
   const phase = FRANK_PHASES.find((p) => p.phase === person.phase);
   if (!phase) return null;
   return (
@@ -18,7 +27,13 @@ export function PhaseTag({ person, streakWeeks = 0 }: { person: SocialProfile; s
       <View style={styles.tag}>
         <Text style={styles.tagText}>{phase.name}</Text>
       </View>
-      <StreakStamp weeks={streakWeeks} size="large" />
+      <StreakStamp
+        weeks={streakWeeks}
+        size="large"
+        who={mine ? 'Você' : person.displayName}
+        name={person.displayName}
+        icon={person.avatar}
+      />
     </View>
   );
 }
