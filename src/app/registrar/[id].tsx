@@ -7,6 +7,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, Vibration, View } f
 import { ExerciseImage } from '@/components/ExerciseImage';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { RecordBurst } from '@/components/RecordBurst';
+import { RestControls } from '@/components/rest/RestControls';
 import { Button, Card, EmptyState } from '@/components/ui';
 import { isTimedExercise } from '@/data/exercises';
 import { useProfile } from '@/data/profile';
@@ -23,6 +24,7 @@ import {
   shiftDays,
 } from '@/lib/format';
 import { beatsSet, bestSet, previousRecord, previousSets, recordBefore } from '@/lib/progress';
+import { clearFlap } from '@/lib/frankFlap';
 import { useUnits } from '@/lib/units';
 import { colors, fonts, outline, outlineColor, statusColors } from '@/theme';
 
@@ -100,6 +102,13 @@ export default function LogWorkoutScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const baseIds = useMemo(() => workout?.exerciseIds ?? [], [workout]);
   const exerciseIds = useMemo(() => [...baseIds, ...extraIds], [baseIds, extraIds]);
+  // Exercícios abertos. Começa só com o primeiro (os outros minimizados); toque no nome abre/fecha.
+  const [expanded, setExpanded] = useState<string[] | null>(null);
+  const firstOpen = exerciseIds.find((x) => !skippedIds.includes(x));
+  const openIds = expanded ?? (firstOpen ? [firstOpen] : []);
+  function toggleOpen(exId: string) {
+    setExpanded(openIds.includes(exId) ? openIds.filter((x) => x !== exId) : [...openIds, exId]);
+  }
 
   // Nos exercícios de tempo, o campo "reps" do rascunho guarda o tempo digitado ("0:45").
   function toDraft(set: SetEntry): DraftSet {
@@ -191,6 +200,7 @@ export default function LogWorkoutScreen() {
   }
 
   function discard() {
+    clearFlap(id);
     setDraft(emptySets(baseIds, sessions, defaultSets));
     setExtraIds([]);
     setSkippedIds([]);
@@ -203,6 +213,8 @@ export default function LogWorkoutScreen() {
   }
 
   function addExtra(exId: string) {
+    // Exercício extra já entra aberto.
+    setExpanded([...openIds, exId]);
     setExtraIds((ids) => [...ids, exId]);
     setDraft((d) => (d[exId] ? d : { ...d, [exId]: blankSets(exId, sessions, defaultSets) }));
   }
@@ -400,6 +412,7 @@ export default function LogWorkoutScreen() {
       exercises,
     });
     clearDraft(id);
+    clearFlap(id);
     router.replace({
       pathname: '/sessao/[id]',
       params: { id: session.id, novo: '1' },
@@ -467,11 +480,39 @@ export default function LogWorkoutScreen() {
             );
           }
 
+          const isOpen = openIds.includes(exId);
+          if (!isOpen) {
+            // Minimizado: foto, nome e um resumo. Toque para abrir.
+            const filled = sets.filter((x) => x.weight.trim() || x.reps.trim()).length;
+            return (
+              <Pressable key={exId} onPress={() => toggleOpen(exId)} accessibilityRole="button">
+                <Card style={styles.collapsedCard}>
+                  <ExerciseImage exerciseId={exId} size={40} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.collapsedName} numberOfLines={1}>
+                      {exercise?.name ?? 'Exercício removido'}
+                    </Text>
+                    <Text style={styles.prev}>
+                      {sets.length} série{sets.length === 1 ? '' : 's'}
+                      {filled > 0 ? ` · ${filled} preenchida${filled === 1 ? '' : 's'}` : ''}
+                    </Text>
+                  </View>
+                  {filled > 0 && filled === sets.length && (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  )}
+                  <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
+                </Card>
+              </Pressable>
+            );
+          }
+
           return (
             <Card key={exId} style={{ gap: 12 }}>
               <View style={styles.exHeader}>
-                <ExerciseImage exerciseId={exId} size={52} />
-                <View style={{ flex: 1 }}>
+                <Pressable onPress={() => toggleOpen(exId)} accessibilityLabel={`Minimizar ${exercise?.name}`}>
+                  <ExerciseImage exerciseId={exId} size={52} />
+                </Pressable>
+                <Pressable style={{ flex: 1 }} onPress={() => toggleOpen(exId)}>
                   {isExtra && (
                     <Text style={[styles.tag, { color: colors.primary }]}>{isEdit ? 'Extra' : 'Extra · só hoje'}</Text>
                   )}
@@ -486,7 +527,7 @@ export default function LogWorkoutScreen() {
                   ) : (
                     <Text style={styles.prev}>Primeira vez registrando este exercício</Text>
                   )}
-                </View>
+                </Pressable>
                 <Pressable
                   style={styles.skipBtn}
                   onPress={() => (isExtra ? removeExtra(exId) : toggleSkip(exId))}
@@ -664,12 +705,15 @@ export default function LogWorkoutScreen() {
         onToggle={togglePicked}
         onClose={() => setPickerOpen(false)}
       />
+      {/* Descanso com o Frank Flap (só ao registrar um treino novo) */}
+      {!isEdit && <RestControls workoutId={id} />}
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 12, paddingBottom: 40 },
+  // Espaço embaixo para o botão de descanso não cobrir o último exercício.
+  content: { padding: 16, gap: 12, paddingBottom: 110 },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -707,6 +751,14 @@ const styles = StyleSheet.create({
   },
   discard: { color: colors.danger, fontSize: 13, fontFamily: fonts.bold },
   exHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  collapsedCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  collapsedName: {
+    color: colors.text,
+    fontFamily: fonts.display,
+    fontSize: 20,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
   skipBtn: {
     alignSelf: 'flex-start',
     flexDirection: 'row',

@@ -28,6 +28,7 @@ import {
 } from '@/data/social';
 import type { Club, ClubMember, Friendship, SocialProfile } from '@/data/social';
 import { confirmAction, notify } from '@/lib/format';
+import { profileStreak } from '@/lib/streak';
 import { colors, fonts, hardShadow, outline, radius } from '@/theme';
 
 type MenuOption = {
@@ -330,7 +331,7 @@ export default function ClubInfoScreen() {
             disabled={isMe}
             onPress={() => router.push({ pathname: '/usuario/[id]', params: { id: member.userId } })}>
             <Card style={styles.row}>
-              <Avatar name={person?.displayName} icon={person?.avatar} />
+              <Avatar name={person?.displayName} icon={person?.avatar} streakWeeks={profileStreak(person)} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>
                   {person?.displayName ?? 'Membro'}

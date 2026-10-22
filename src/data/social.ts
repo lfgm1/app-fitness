@@ -31,6 +31,11 @@ export type SocialProfile = {
   avatar: string | null;
   /** Confirmação de leitura ligada (risquinhos azuis). */
   readReceipts: boolean;
+  /** Semanas seguidas de streak e quando o fogo apaga se a pessoa parar (use liveStreak). */
+  streakWeeks: number;
+  streakExpiresAt: string | null;
+  /** Mostra para os amigos quando está online (e o treino em andamento). */
+  showOnline: boolean;
 };
 
 export type Friendship = {
@@ -67,7 +72,8 @@ export type Message = {
   clubId: string | null;
   senderId: string;
   recipientId: string | null;
-  kind: 'text' | 'workout' | 'block';
+  /** 'system': aviso do grupo criado pelo banco ("Fulano adicionou Ciclano"). */
+  kind: 'text' | 'workout' | 'block' | 'system';
   body: string | null;
   workout: SharedWorkout | null;
   block: SharedBlock | null;
@@ -93,6 +99,9 @@ export function toProfile(row: Row): SocialProfile {
     weekCount: (row.week_count as number) ?? 0,
     avatar: (row.avatar as string) ?? null,
     readReceipts: (row.read_receipts as boolean) ?? true,
+    streakWeeks: (row.streak_weeks as number) ?? 0,
+    streakExpiresAt: (row.streak_expires_at as string) ?? null,
+    showOnline: (row.show_online as boolean) ?? true,
   };
 }
 
@@ -200,7 +209,7 @@ export async function saveMyProfile(
 /** Atualiza o resumo público (fase do Frank e números). Só se o perfil social já existir. */
 export async function updateMyStats(
   userId: string,
-  stats: Pick<SocialProfile, 'phase' | 'workoutCount' | 'recordCount' | 'weekCount'>
+  stats: Pick<SocialProfile, 'phase' | 'workoutCount' | 'recordCount' | 'weekCount' | 'streakWeeks' | 'streakExpiresAt'>
 ) {
   const { error } = await supabase
     .from('social_profiles')
@@ -209,6 +218,8 @@ export async function updateMyStats(
       workout_count: stats.workoutCount,
       record_count: stats.recordCount,
       week_count: stats.weekCount,
+      streak_weeks: stats.streakWeeks,
+      streak_expires_at: stats.streakExpiresAt,
     })
     .eq('user_id', userId);
   fail(error);
@@ -516,6 +527,37 @@ export async function setReadReceipts(userId: string, on: boolean) {
   fail(error);
 }
 
+// ---------- Online / treinando agora ----------
+
+export type Presence = { online: boolean; activity: string | null; activitySince: string | null };
+
+/** "Estou aqui": avisa que o app está aberto e qual treino está em andamento (ou null). */
+export async function touchPresence(activity: string | null) {
+  const { error } = await supabase.rpc('touch_presence', { p_activity: activity ?? '' });
+  fail(error);
+}
+
+/** Status dos amigos (só de quem deixa mostrar; vazio se eu desliguei o meu). */
+export async function getFriendsPresence(): Promise<Record<string, Presence>> {
+  const { data, error } = await supabase.rpc('friends_presence');
+  fail(error);
+  const rows = (data ?? []) as {
+    user_id: string;
+    online: boolean;
+    activity: string | null;
+    activity_since: string | null;
+  }[];
+  return Object.fromEntries(
+    rows.map((r) => [r.user_id, { online: Boolean(r.online), activity: r.activity, activitySince: r.activity_since }])
+  );
+}
+
+/** Liga ou desliga "Mostrar quando estou online". */
+export async function setShowOnline(userId: string, on: boolean) {
+  const { error } = await supabase.from('social_profiles').update({ show_online: on }).eq('user_id', userId);
+  fail(error);
+}
+
 /** Conversas no privado: a última mensagem com cada pessoa, da mais recente para a mais antiga. */
 export async function listConversations(userId: string) {
   const { data, error } = await supabase
@@ -525,8 +567,12 @@ export async function listConversations(userId: string) {
     .order('created_at', { ascending: false })
     .limit(300);
   fail(error);
+  const messages = (data ?? []).map(toMessage);
+  // A prévia ignora as mensagens que eu apaguei só para mim (mostra a anterior).
+  const hidden = await listHiddenIds(messages.map((m) => m.id));
   const latest = new Map<string, Message>();
-  for (const message of (data ?? []).map(toMessage)) {
+  for (const message of messages) {
+    if (hidden.has(message.id)) continue;
     const peer = message.senderId === userId ? message.recipientId! : message.senderId;
     if (!latest.has(peer)) latest.set(peer, message);
   }

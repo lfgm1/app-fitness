@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DialogHost } from '@/components/DialogHost';
 import { LoginScreen } from '@/components/LoginScreen';
 import { ProfileForm } from '@/components/ProfileForm';
+import { PresenceSync } from '@/components/social/PresenceSync';
 import { SocialStatsSync } from '@/components/social/SocialStatsSync';
 import { AuthProvider, useAuth } from '@/data/auth';
 import { ProfileProvider, useProfile } from '@/data/profile';
@@ -46,6 +47,7 @@ function Navigator() {
   return (
     <>
       <SocialStatsSync />
+      <PresenceSync />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.background },

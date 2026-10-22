@@ -10,7 +10,7 @@ import type { IconName } from '@/components/ui';
 import { useAuth } from '@/data/auth';
 import { useProfile } from '@/data/profile';
 import type { Profile, WeightUnit } from '@/data/profile';
-import { getProfile, setReadReceipts } from '@/data/social';
+import { getProfile, setReadReceipts, setShowOnline } from '@/data/social';
 import { clearLocalData, useStore } from '@/data/store';
 import { confirmAction, notify } from '@/lib/format';
 import { colors, fonts } from '@/theme';
@@ -26,16 +26,32 @@ export default function SettingsScreen() {
   const [saving, setSaving] = useState(false);
   // Confirmação de leitura (risquinhos azuis). null = ainda carregando ou sem perfil no Social.
   const [readReceipts, setReadReceiptsState] = useState<boolean | null>(null);
+  // Mostrar para os amigos quando estou online (e o treino em andamento).
+  const [showOnline, setShowOnlineState] = useState<boolean | null>(null);
   const userId = session?.user.id;
 
   useFocusEffect(
     useCallback(() => {
       if (!userId) return;
       getProfile(userId)
-        .then((p) => setReadReceiptsState(p ? p.readReceipts : null))
+        .then((p) => {
+          setReadReceiptsState(p ? p.readReceipts : null);
+          setShowOnlineState(p ? p.showOnline : null);
+        })
         .catch(() => {});
     }, [userId])
   );
+
+  async function toggleShowOnline(on: boolean) {
+    if (!userId) return;
+    setShowOnlineState(on);
+    try {
+      await setShowOnline(userId, on);
+    } catch {
+      setShowOnlineState(!on);
+      notify('Não foi possível salvar', 'Verifique sua conexão com a internet e tente de novo.');
+    }
+  }
 
   async function toggleReadReceipts(on: boolean) {
     if (!userId) return;
@@ -148,6 +164,20 @@ export default function SettingsScreen() {
             <Switch
               value={readReceipts}
               onValueChange={toggleReadReceipts}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={colors.pena}
+            />
+          </Row>
+        )}
+        {showOnline !== null && (
+          <Row
+            icon="radio-button-on-outline"
+            label="Mostrar quando estou online"
+            hint="Desligado, você aparece sempre offline para os amigos e também não vê quem está online"
+            divider>
+            <Switch
+              value={showOnline}
+              onValueChange={toggleShowOnline}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={colors.pena}
             />

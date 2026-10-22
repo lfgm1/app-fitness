@@ -10,8 +10,12 @@ import { useStore } from '@/data/store';
 import type { Session } from '@/data/store';
 import { frankProgress, frankXp } from '@/lib/frank';
 import { exerciseHistory } from '@/lib/progress';
+import { computeStreak } from '@/lib/streak';
 
-type Stats = Pick<SocialProfile, 'phase' | 'workoutCount' | 'recordCount' | 'weekCount'>;
+type Stats = Pick<
+  SocialProfile,
+  'phase' | 'workoutCount' | 'recordCount' | 'weekCount' | 'streakWeeks' | 'streakExpiresAt'
+>;
 
 /** Segunda-feira desta semana, à meia-noite. */
 function startOfWeek(now: Date) {
@@ -24,11 +28,14 @@ function startOfWeek(now: Date) {
 export function computeStats(sessions: Session[], now: Date): Stats {
   const exerciseIds = [...new Set(sessions.flatMap((s) => s.exercises.map((e) => e.exerciseId)))];
   const weekStart = startOfWeek(now).toISOString();
+  const streak = computeStreak(sessions, now);
   return {
     phase: frankProgress(frankXp(sessions)).current.phase,
     workoutCount: sessions.length,
     recordCount: exerciseIds.reduce((sum, id) => sum + exerciseHistory(sessions, id).filter((h) => h.isPR).length, 0),
     weekCount: sessions.filter((s) => s.date >= weekStart).length,
+    streakWeeks: streak.weeks,
+    streakExpiresAt: streak.expiresAt,
   };
 }
 

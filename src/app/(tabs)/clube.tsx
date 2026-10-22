@@ -1,10 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/social/Avatar';
 import { GroupIcon } from '@/components/social/GroupIcon';
+import { StreakStamp } from '@/components/social/StreakStamp';
 import { computeStats } from '@/components/social/SocialStatsSync';
 import { Button, Card, EmptyState, Segmented, SectionTitle } from '@/components/ui';
 import { useAuth } from '@/data/auth';
@@ -18,12 +19,13 @@ import {
   listConversations,
   listFriendships,
   listMyClubs,
+  getFriendsPresence,
   removeFriendship,
   updateMyStats,
 } from '@/data/social';
 import type { Club, Friendship, Message, SocialProfile } from '@/data/social';
 import { useStore } from '@/data/store';
-import { FRANK_PHASES } from '@/lib/frank';
+import { profileStreak } from '@/lib/streak';
 import { notify } from '@/lib/format';
 import { colors, fonts } from '@/theme';
 
@@ -39,7 +41,39 @@ type Data = {
   cards: Record<string, { displayName: string; avatar: string | null }>;
 };
 
-const phaseName = (phase: string) => FRANK_PHASES.find((p) => p.phase === phase)?.name ?? '';
+type Status = 'treinando' | 'online' | 'offline';
+const STATUS_GROUPS: { key: Status; title: string }[] = [
+  { key: 'treinando', title: 'Treinando agora' },
+  { key: 'online', title: 'Online' },
+  { key: 'offline', title: 'Offline' },
+];
+const STATUS_COLORS: Record<Status, string> = {
+  treinando: colors.primary,
+  online: '#5DCAA5',
+  offline: colors.textFaint,
+};
+// De quanto em quanto tempo atualiza quem está online.
+const PRESENCE_POLL_MS = 30 * 1000;
+
+type FriendStatus = { online: boolean; activity: string | null; minutes?: number };
+
+/** Status dos amigos, com há quantos minutos começaram o treino. */
+async function loadPresence(): Promise<Record<string, FriendStatus>> {
+  const raw = await getFriendsPresence();
+  const now = Date.now();
+  return Object.fromEntries(
+    Object.entries(raw).map(([id, p]) => [
+      id,
+      {
+        online: p.online,
+        activity: p.activity,
+        minutes: p.activitySince
+          ? Math.max(0, Math.round((now - new Date(p.activitySince).getTime()) / 60000))
+          : undefined,
+      },
+    ])
+  );
+}
 
 export default function ClubScreen() {
   const { session } = useAuth();
@@ -50,6 +84,28 @@ export default function ClubScreen() {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Online / treinando agora de cada amigo, e quais grupos da lista estão recolhidos.
+  const [presence, setPresence] = useState<Record<string, FriendStatus>>({});
+  const [closed, setClosed] = useState<Partial<Record<Status, boolean>>>({});
+
+  // Com a aba Amigos aberta, atualiza o status de tempos em tempos.
+  useEffect(() => {
+    if (section !== 'amigos') return;
+    let cancelled = false;
+    const check = () =>
+      loadPresence()
+        .then((p) => !cancelled && setPresence(p))
+        .catch(() => {});
+    check();
+    const timer = setInterval(check, PRESENCE_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [section]);
+
+  const statusOf = (id: string): Status =>
+    presence[id]?.activity ? 'treinando' : presence[id]?.online ? 'online' : 'offline';
 
   const load = useCallback(async () => {
     try {
@@ -182,7 +238,7 @@ export default function ClubScreen() {
                   key={peerId}
                   onPress={() => router.push({ pathname: '/conversa/[id]', params: { id: peerId } })}>
                   <Card style={styles.row}>
-                    <Avatar name={person?.displayName} icon={person?.avatar} />
+                    <Avatar name={person?.displayName} icon={person?.avatar} streakWeeks={profileStreak(person)} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.name}>{person?.displayName ?? 'Alguém'}</Text>
                       <Text style={styles.muted} numberOfLines={1}>
@@ -218,27 +274,68 @@ export default function ClubScreen() {
             );
           })}
 
-          <SectionTitle>Seus amigos ({friends.length})</SectionTitle>
-          {friends.length === 0 && <Text style={styles.muted}>Adicione amigos pelo @ ou mande seu código.</Text>}
-          {friends.map((f) => {
-            const person = data.people[f.otherId];
+          {friends.length === 0 && (
+            <>
+              <SectionTitle>Seus amigos (0)</SectionTitle>
+              <Text style={styles.muted}>Adicione amigos pelo @ ou mande seu código.</Text>
+            </>
+          )}
+          {STATUS_GROUPS.map(({ key, title }) => {
+            const list = friends.filter((f) => statusOf(f.otherId) === key);
+            if (list.length === 0) return null;
+            const isOpen = !closed[key];
             return (
-              <Pressable
-                key={f.id}
-                onPress={() => router.push({ pathname: '/usuario/[id]', params: { id: f.otherId } })}>
-                <Card style={styles.row}>
-                  <Avatar name={person?.displayName} icon={person?.avatar} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.name}>{person?.displayName ?? 'Amigo'}</Text>
-                    <Text style={styles.muted}>
-                      {person?.visibility === 'nobody'
-                        ? 'Perfil privado'
-                        : `${phaseName(person?.phase ?? 'ovo')} · ${person?.workoutCount ?? 0} treinos`}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
-                </Card>
-              </Pressable>
+              <View key={key} style={{ gap: 8 }}>
+                <Pressable
+                  style={styles.groupHeader}
+                  onPress={() => setClosed((c) => ({ ...c, [key]: isOpen }))}
+                  accessibilityRole="button">
+                  <Text style={styles.groupTitle}>
+                    {title} <Text style={styles.groupCount}>{list.length}</Text>
+                  </Text>
+                  <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
+                </Pressable>
+                {isOpen &&
+                  list.map((f) => {
+                    const person = data.people[f.otherId];
+                    const status = presence[f.otherId];
+                    const weeks = profileStreak(person);
+                    return (
+                      <Pressable
+                        key={f.id}
+                        onPress={() => router.push({ pathname: '/usuario/[id]', params: { id: f.otherId } })}>
+                        <Card
+                          style={[
+                            styles.row,
+                            key === 'treinando' && styles.training,
+                            key === 'offline' && styles.offline,
+                          ]}>
+                          <View>
+                            <Avatar name={person?.displayName} icon={person?.avatar} streakWeeks={weeks} />
+                            <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[key] }]} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.name}>{person?.displayName ?? 'Amigo'}</Text>
+                            {key === 'treinando' ? (
+                              <View style={styles.statusLine}>
+                                <Ionicons name="barbell" size={14} color={colors.primary} />
+                                <Text
+                                  style={[styles.muted, { color: colors.primary, flexShrink: 1 }]}
+                                  numberOfLines={1}>
+                                  Treinando {status?.activity}
+                                  {status?.minutes !== undefined ? ` · há ${status.minutes} min` : ''}
+                                </Text>
+                              </View>
+                            ) : (
+                              <Text style={styles.muted}>{key === 'online' ? 'Online' : 'Offline'}</Text>
+                            )}
+                          </View>
+                          <StreakStamp weeks={weeks} />
+                        </Card>
+                      </Pressable>
+                    );
+                  })}
+              </View>
             );
           })}
 
@@ -267,6 +364,28 @@ export default function ClubScreen() {
 }
 
 const styles = StyleSheet.create({
+  groupHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 },
+  groupTitle: {
+    color: colors.textMuted,
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  groupCount: { color: colors.textFaint },
+  training: { borderColor: colors.primary },
+  offline: { opacity: 0.6 },
+  statusDot: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    borderWidth: 3,
+    borderColor: colors.card,
+  },
+  statusLine: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   content: { padding: 16, gap: 12, paddingBottom: 40 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   request: { borderColor: colors.bico },

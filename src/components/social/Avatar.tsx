@@ -1,15 +1,31 @@
 // Foto de perfil do Social: o ícone escolhido pela pessoa ou, se não escolheu, a inicial do nome.
-// No futuro pode entrar uma foto (e a borda pode mudar com o nível do Frank).
+// Com streak, ganha o fogo atrás (veja StreakFire). No futuro pode entrar uma foto e uma borda especial.
 
 import { Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
+import { StreakFire } from '@/components/social/StreakFire';
 import { findAvatarIcon } from '@/lib/avatars';
+import { streakLevel } from '@/lib/streak';
 import { colors, fonts, outlineColor } from '@/theme';
 
-type Props = { name?: string; icon?: string | null; size?: number };
+type Props = {
+  name?: string;
+  icon?: string | null;
+  size?: number;
+  /** Semanas seguidas de streak (já conferidas com liveStreak). Acima de 2, aparece o fogo. */
+  streakWeeks?: number;
+};
 
-export function Avatar({ name, icon, size = 44 }: Props) {
+export function Avatar({ name, icon, size = 44, streakWeeks = 0 }: Props) {
+  return (
+    <StreakFire level={streakLevel(streakWeeks).level} size={size}>
+      <AvatarCircle name={name} icon={icon} size={size} />
+    </StreakFire>
+  );
+}
+
+function AvatarCircle({ name, icon, size }: { name?: string; icon?: string | null; size: number }) {
   const chosen = findAvatarIcon(icon);
   if (chosen) {
     // Recorta em círculo: nada do desenho aparece fora da borda.

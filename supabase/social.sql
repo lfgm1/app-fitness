@@ -800,3 +800,197 @@ end;
 $$;
 revoke execute on function public.invite_preview(text) from public, anon;
 grant execute on function public.invite_preview(text) to authenticated;
+
+-- ---------- Avisos no grupo e mensagens só a partir de quando entrou ----------
+-- Mensagem de sistema ('system'): "Fulano adicionou Ciclano" / "Fulano entrou pelo link de convite".
+-- Só o banco cria (pelas funções abaixo): o app não consegue enviar nem apagar.
+alter table public.messages drop constraint if exists messages_kind_check;
+alter table public.messages add constraint messages_kind_check check (kind in ('text', 'workout', 'block', 'system'));
+
+-- Quando a pessoa entrou no grupo (null = não está no grupo).
+create or replace function private.member_since(club uuid, member uuid)
+returns timestamptz language sql stable security definer set search_path = '' as $$
+  select m.joined_at from public.club_members m where m.club_id = club and m.user_id = member;
+$$;
+grant execute on function private.member_since(uuid, uuid) to authenticated;
+
+-- No grupo, cada um só vê as mensagens enviadas a partir de quando entrou.
+drop policy if exists "ver mensagens" on public.messages;
+create policy "ver mensagens" on public.messages for select to authenticated using (
+  (club_id is not null and created_at >= private.member_since(club_id, (select auth.uid())))
+  or (club_id is null and (select auth.uid()) in (sender_id, recipient_id))
+);
+
+drop policy if exists "enviar mensagem" on public.messages;
+create policy "enviar mensagem" on public.messages for insert to authenticated with check (
+  sender_id = (select auth.uid()) and deleted = false and kind <> 'system'
+  and (
+    (club_id is not null and private.is_club_member(club_id, sender_id))
+    or (
+      recipient_id is not null
+      and private.has_friendship(sender_id, recipient_id, true)
+      and not private.is_blocked(sender_id, recipient_id)
+    )
+  )
+);
+
+drop policy if exists "apagar minha mensagem" on public.messages;
+create policy "apagar minha mensagem" on public.messages for update to authenticated
+  using (sender_id = (select auth.uid()) and kind <> 'system' and created_at > now() - interval '5 minutes')
+  with check (sender_id = (select auth.uid()) and deleted = true);
+
+create or replace function private.display_name(member uuid)
+returns text language sql stable security definer set search_path = '' as $$
+  select coalesce((select p.display_name from public.social_profiles p where p.user_id = member), 'Alguém');
+$$;
+
+-- Entrar pelo código ou link: entra no grupo e avisa no chat (só se ainda não estava).
+create or replace function public.accept_invite(p_code text)
+returns text language plpgsql security definer set search_path = '' as $$
+declare
+  v_user uuid := auth.uid();
+  v_code text := upper(replace(trim(p_code), '-', ''));
+  v_target uuid;
+  v_new integer;
+begin
+  if v_user is null then raise exception 'Not authenticated'; end if;
+
+  select user_id into v_target from public.social_profiles where friend_code = v_code;
+  if v_target is not null then
+    if v_target = v_user then raise exception 'Este é o seu próprio código'; end if;
+    if private.is_blocked(v_user, v_target) then raise exception 'Código inválido'; end if;
+    return 'friend:' || v_target;
+  end if;
+
+  select id into v_target from public.clubs where invite_code = v_code;
+  if v_target is not null then
+    insert into public.club_members (club_id, user_id) values (v_target, v_user) on conflict do nothing;
+    get diagnostics v_new = row_count;
+    if v_new > 0 then
+      insert into public.messages (club_id, sender_id, kind, body)
+      values (v_target, v_user, 'system', private.display_name(v_user) || ' entrou pelo link de convite');
+    end if;
+    return 'club:' || v_target;
+  end if;
+
+  raise exception 'Código inválido';
+end;
+$$;
+
+-- Adicionar amigos ao grupo: cada um que entra gera o aviso "Fulano adicionou Ciclano".
+create or replace function public.add_club_members(p_club uuid, p_users uuid[])
+returns integer language plpgsql security definer set search_path = '' as $$
+declare
+  v_user  uuid := auth.uid();
+  v_count integer := 0;
+  v_added uuid;
+begin
+  if v_user is null then raise exception 'Not authenticated'; end if;
+  if not private.is_club_member(p_club, v_user) then raise exception 'Você não está nesse grupo'; end if;
+  if coalesce(array_length(p_users, 1), 0) > 50 then raise exception 'Escolha até 50 pessoas por vez'; end if;
+
+  for v_added in
+    insert into public.club_members (club_id, user_id)
+    select p_club, u
+    from unnest(p_users) as u
+    where u <> v_user
+      and private.has_friendship(v_user, u, true)
+      and not private.is_blocked(v_user, u)
+    on conflict do nothing
+    returning user_id
+  loop
+    insert into public.messages (club_id, sender_id, kind, body)
+    values (p_club, v_user, 'system', private.display_name(v_user) || ' adicionou ' || private.display_name(v_added));
+    v_count := v_count + 1;
+  end loop;
+  return v_count;
+end;
+$$;
+
+-- ---------- Streak semanal (fogo no perfil) ----------
+-- Semanas seguidas com treino em 3 dias diferentes. "streak_expires_at" é quando o fogo apaga se a
+-- pessoa não treinar mais (fim da semana seguinte à última semana completa): assim os amigos veem o
+-- fogo apagar mesmo que a pessoa não abra o app.
+alter table public.social_profiles add column if not exists streak_weeks integer not null default 0
+  check (streak_weeks >= 0);
+alter table public.social_profiles add column if not exists streak_expires_at timestamptz;
+
+-- Perfil "Ninguém" também esconde o streak.
+create or replace function private.hide_private_stats()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.visibility = 'nobody' then
+    new.phase := 'ovo';
+    new.workout_count := 0;
+    new.record_count := 0;
+    new.week_count := 0;
+    new.streak_weeks := 0;
+    new.streak_expires_at := null;
+  end if;
+  return new;
+end;
+$$;
+
+-- ---------- Online / treinando agora (só para amigos) ----------
+-- O app avisa a cada minuto que a pessoa está com ele aberto (e se tem treino em andamento).
+-- Fica numa tabela própria, que só o dono lê: os amigos veem pelo friends_presence().
+-- Quem desliga "Mostrar quando estou online" aparece sempre offline e também não vê os outros.
+alter table public.social_profiles add column if not exists show_online boolean not null default true;
+
+create table if not exists public.presence (
+  user_id        uuid        primary key default auth.uid() references auth.users (id) on delete cascade,
+  last_seen_at   timestamptz not null default now(),
+  activity       text        check (activity is null or char_length(activity) <= 80),
+  activity_since timestamptz
+);
+alter table public.presence enable row level security;
+drop policy if exists "minha presenca" on public.presence;
+create policy "minha presenca" on public.presence for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- "Estou aqui" (hora do servidor). activity = nome do treino em andamento, ou null.
+create or replace function public.touch_presence(p_activity text)
+returns void language sql security invoker set search_path = '' as $$
+  insert into public.presence (user_id, last_seen_at, activity, activity_since)
+  values (auth.uid(), now(), nullif(trim(p_activity), ''), case when nullif(trim(p_activity), '') is null then null else now() end)
+  on conflict (user_id) do update set
+    last_seen_at = now(),
+    activity = excluded.activity,
+    -- O "há quanto tempo" só reinicia quando o treino muda.
+    activity_since = case
+      when excluded.activity is null then null
+      when public.presence.activity is distinct from excluded.activity then now()
+      else public.presence.activity_since
+    end;
+$$;
+revoke execute on function public.touch_presence(text) from public, anon;
+grant execute on function public.touch_presence(text) to authenticated;
+
+-- Status dos meus amigos: online = avisou nos últimos 2 minutos.
+create or replace function public.friends_presence()
+returns table (user_id uuid, online boolean, activity text, activity_since timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select f.other, (pr.last_seen_at > now() - interval '2 minutes'),
+         case when pr.last_seen_at > now() - interval '2 minutes' then pr.activity end,
+         case when pr.last_seen_at > now() - interval '2 minutes' then pr.activity_since end
+  from (
+    select case when fr.requester_id = auth.uid() then fr.addressee_id else fr.requester_id end as other
+    from public.friendships fr
+    where fr.status = 'accepted' and auth.uid() in (fr.requester_id, fr.addressee_id)
+  ) f
+  join public.social_profiles p on p.user_id = f.other and p.show_online
+  left join public.presence pr on pr.user_id = f.other
+  where coalesce((select me.show_online from public.social_profiles me where me.user_id = auth.uid()), true)
+    and not private.is_blocked(auth.uid(), f.other);
+$$;
+revoke execute on function public.friends_presence() from public, anon;
+grant execute on function public.friends_presence() to authenticated;
+
+-- ---------- Índices que faltavam (indicados pelo consultor do Supabase) ----------
+-- Deixam rápidas as buscas e as exclusões em cascata (ex.: ao excluir uma conta).
+create index if not exists clubs_owner on public.clubs (owner_id);
+create index if not exists friendships_requester on public.friendships (requester_id);
+create index if not exists message_hides_message on public.message_hides (message_id);
+create index if not exists reports_message on public.reports (message_id);
+create index if not exists reports_reporter on public.reports (reporter_id);
+create index if not exists reports_target on public.reports (target_user_id);

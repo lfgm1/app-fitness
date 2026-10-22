@@ -7,10 +7,12 @@ import { Avatar } from '@/components/social/Avatar';
 import { PhaseTag, ProfileStats } from '@/components/social/ProfileSummary';
 import { Button, Card, EmptyState, SectionTitle } from '@/components/ui';
 import { useAuth } from '@/data/auth';
+import { useStore } from '@/data/store';
 import { EXPERIENCE_HINTS, EXPERIENCE_LABELS, SEX_LABELS, useProfile } from '@/data/profile';
 import { VISIBILITY_LABELS, getProfile, inviteLink, shareText } from '@/data/social';
 import type { SocialProfile } from '@/data/social';
 import { ageFrom, formatBirthDate, notify } from '@/lib/format';
+import { computeStreak } from '@/lib/streak';
 import { kgToUnit, useUnits } from '@/lib/units';
 import { colors, fonts, outlineColor } from '@/theme';
 
@@ -22,6 +24,9 @@ export default function ProfileScreen() {
   const { session } = useAuth();
   const { profile } = useProfile();
   const units = useUnits();
+  const { sessions } = useStore();
+  const [now] = useState(() => new Date());
+  const streak = computeStreak(sessions, now).weeks;
   const userId = session?.user.id;
   // Perfil público (o @ e o que os amigos veem). Recarrega ao voltar da tela de edição.
   const [publicProfile, setPublicProfile] = useState<SocialProfile | null>(null);
@@ -75,11 +80,18 @@ export default function ProfileScreen() {
     <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View style={styles.avatar}>
-          <Avatar name={profile.name ?? session?.user.email} icon={publicProfile?.avatar} size={88} />
+          <Avatar
+            name={profile.name ?? session?.user.email}
+            icon={publicProfile?.avatar}
+            size={88}
+            streakWeeks={publicProfile?.visibility === 'nobody' ? 0 : streak}
+          />
         </View>
         <Text style={styles.name}>{profile.name ?? 'Sem nome'}</Text>
         {publicProfile && <Text style={styles.username}>@{publicProfile.username}</Text>}
-        {publicProfile && publicProfile.visibility !== 'nobody' && <PhaseTag person={publicProfile} />}
+        {publicProfile && publicProfile.visibility !== 'nobody' && (
+          <PhaseTag person={publicProfile} streakWeeks={streak} />
+        )}
         {publicProfile && (
           <Pressable style={styles.codePill} onPress={shareCode} accessibilityLabel="Compartilhar código de amigo">
             <Text style={styles.codeLabel}>Código de amigo</Text>

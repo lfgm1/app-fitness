@@ -3,17 +3,22 @@
 
 import { StyleSheet, Text, View } from 'react-native';
 
+import { StreakStamp } from '@/components/social/StreakStamp';
 import { Card } from '@/components/ui';
 import type { SocialProfile } from '@/data/social';
 import { FRANK_PHASES } from '@/lib/frank';
 import { colors, fonts, outlineColor } from '@/theme';
 
-export function PhaseTag({ person }: { person: SocialProfile }) {
+/** A fase do Frank e, ao lado, o streak (se tiver fogo). */
+export function PhaseTag({ person, streakWeeks = 0 }: { person: SocialProfile; streakWeeks?: number }) {
   const phase = FRANK_PHASES.find((p) => p.phase === person.phase);
   if (!phase) return null;
   return (
-    <View style={styles.tag}>
-      <Text style={styles.tagText}>{phase.name}</Text>
+    <View style={styles.tags}>
+      <View style={styles.tag}>
+        <Text style={styles.tagText}>{phase.name}</Text>
+      </View>
+      <StreakStamp weeks={streakWeeks} size="large" />
     </View>
   );
 }
@@ -38,8 +43,8 @@ function Stat({ value, label, color }: { value: number; label: string; color: st
 }
 
 const styles = StyleSheet.create({
+  tags: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   tag: {
-    marginTop: 4,
     paddingHorizontal: 12,
     backgroundColor: colors.primary,
     borderWidth: 3,

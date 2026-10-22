@@ -5,13 +5,17 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ExerciseImage } from '@/components/ExerciseImage';
 import { Frank } from '@/components/Frank';
+import { NewsCard } from '@/components/NewsCard';
 import { StartLineArt } from '@/components/StartLineArt';
+import { StreakStamp } from '@/components/social/StreakStamp';
 import { Button, Card, PRBadge, SectionTitle, StatusBadge } from '@/components/ui';
 import { isTimedExercise } from '@/data/exercises';
 import { useProfile } from '@/data/profile';
 import { useStore } from '@/data/store';
 import type { Workout } from '@/data/store';
+import { nextInBlock } from '@/lib/blocks';
 import { frankProgress, frankXp } from '@/lib/frank';
+import { DAYS_PER_WEEK, computeStreak } from '@/lib/streak';
 import { formatShortDate } from '@/lib/format';
 import { exerciseHistory } from '@/lib/progress';
 import { useUnits } from '@/lib/units';
@@ -48,15 +52,8 @@ function greeting(hour: number) {
   return 'Boa noite';
 }
 
-/** Segunda-feira 00:00 da semana atual. */
-function startOfWeek(now: Date) {
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return d;
-}
-
 export default function HomeScreen() {
-  const { workouts, sessions, drafts, getExercise } = useStore();
+  const { workouts, sessions, drafts, blocks, getExercise } = useStore();
   const { profile } = useProfile();
   const units = useUnits();
   const [now] = useState(() => new Date());
@@ -71,27 +68,26 @@ export default function HomeScreen() {
   // Treino em andamento (rascunho salvo).
   const inProgress = workouts.find((w) => drafts[w.id]);
 
-  // Sugestão: o treino que está há mais tempo sem ser feito (nunca feito vem primeiro).
+  // Sugestão: se o último treino feito está num bloco, o próximo do bloco (na ordem).
+  // Se não, o treino que está há mais tempo sem ser feito (nunca feito vem primeiro).
+  const fromBlock = nextInBlock(sessions, blocks, workouts);
   const lastDone = (w: Workout) =>
     sessions
       .filter((s) => s.workoutId === w.id)
       .map((s) => s.date)
       .sort()
       .at(-1);
-  const suggestion = [...workouts]
-    .filter((w) => w.id !== inProgress?.id)
-    .sort((a, b) => (lastDone(a) ?? '').localeCompare(lastDone(b) ?? ''))[0];
+  const suggestion = fromBlock
+    ? fromBlock.workout.id === inProgress?.id
+      ? undefined
+      : fromBlock.workout
+    : [...workouts]
+        .filter((w) => w.id !== inProgress?.id)
+        .sort((a, b) => (lastDone(a) ?? '').localeCompare(lastDone(b) ?? ''))[0];
 
-  // Dias treinados nesta semana (segunda a domingo).
-  const weekStart = startOfWeek(now);
-  const trainedDays = new Set(
-    sessions
-      .map((s) => new Date(s.date))
-      .filter((d) => d >= weekStart)
-      .map((d) => (d.getDay() + 6) % 7)
-  );
-  const weekCount = sessions.filter((s) => new Date(s.date) >= weekStart).length;
-  const todayIndex = (now.getDay() + 6) % 7;
+  // Streak semanal: dias com treino nesta semana (segunda a domingo) e semanas seguidas.
+  const streak = computeStreak(sessions, now);
+  const missing = Math.max(0, DAYS_PER_WEEK - streak.thisWeekCount);
 
   // Conquistas dos últimos 7 dias. A primeira é o destaque: recorde, depois carga, depois micro.
   const since = new Date(now.getTime() - SEVEN_DAYS).toISOString();
@@ -117,6 +113,9 @@ export default function HomeScreen() {
         </Text>
         <Text style={styles.date}>{today}</Text>
       </View>
+
+      {/* Novidade do app (fica até a pessoa fechar no X) */}
+      <NewsCard />
 
       {workouts.length === 0 ? (
         <Card style={styles.welcome}>
@@ -174,7 +173,11 @@ export default function HomeScreen() {
                 <Text style={styles.cardLabel}>Próximo treino sugerido</Text>
                 <Text style={styles.cardTitle}>{suggestion.name}</Text>
                 <Text style={styles.cardMeta}>
-                  {lastDone(suggestion) ? `Último em ${formatShortDate(lastDone(suggestion)!)}` : 'Ainda não feito'}
+                  {fromBlock
+                    ? `${fromBlock.block.emoji} ${fromBlock.block.name} · ${fromBlock.position} de ${fromBlock.total}`
+                    : lastDone(suggestion)
+                      ? `Último em ${formatShortDate(lastDone(suggestion)!)}`
+                      : 'Ainda não feito'}
                 </Text>
               </View>
               <Button
@@ -188,12 +191,25 @@ export default function HomeScreen() {
 
           <SectionTitle>Sua semana</SectionTitle>
           <Card style={{ gap: 14 }}>
+            <View style={styles.streakRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardLabel}>Streak semanal</Text>
+                <Text style={[styles.streakWeeks, streak.weeks > 0 && { color: streak.level.color }]}>
+                  {streak.weeks > 0 ? streak.level.name : 'Sem streak ainda'}
+                </Text>
+              </View>
+              <StreakStamp weeks={streak.weeks} size="large" />
+            </View>
             <Text style={styles.weekCount}>
-              <Text style={{ color: colors.primary }}>{weekCount}</Text> treino{weekCount === 1 ? '' : 's'} esta semana
+              <Text style={{ color: colors.primary }}>
+                {Math.min(streak.thisWeekCount, DAYS_PER_WEEK)} de {DAYS_PER_WEEK}
+              </Text>{' '}
+              dias de treino esta semana
             </Text>
             <View style={styles.days}>
               {WEEKDAY_LETTERS.map((letter, i) => {
-                const trained = trainedDays.has(i);
+                const trained = streak.days[i];
+                const todayIndex = streak.todayIndex;
                 return (
                   <View key={i} style={styles.day}>
                     <View style={[styles.dayDot, trained && styles.dayDotDone, i === todayIndex && styles.dayDotToday]}>
@@ -204,6 +220,13 @@ export default function HomeScreen() {
                 );
               })}
             </View>
+            <Text style={styles.cardMeta}>
+              {missing === 0
+                ? 'Semana garantida! Seu streak continua.'
+                : `Falta${missing === 1 ? '' : 'm'} ${missing} dia${missing === 1 ? '' : 's'} de treino até domingo para ${
+                    streak.weeks > 0 ? 'manter o fogo' : 'somar 1 semana de streak'
+                  }.`}
+            </Text>
           </Card>
 
           {highlight && (
@@ -283,6 +306,8 @@ const styles = StyleSheet.create({
   },
   cardMeta: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, marginTop: 2 },
   weekCount: { color: colors.text, fontSize: 16, fontFamily: fonts.bold },
+  streakRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  streakWeeks: { color: colors.text, fontFamily: fonts.display, fontSize: 28, textTransform: 'uppercase' },
   days: { flexDirection: 'row', justifyContent: 'space-between' },
   day: { alignItems: 'center', gap: 6 },
   dayDot: {

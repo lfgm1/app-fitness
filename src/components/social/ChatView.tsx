@@ -239,6 +239,7 @@ export function ChatView({ userId, target }: Props) {
   }
 
   function onLongPress(message: Message) {
+    if (message.kind === 'system') return;
     if (message.pending === 'failed') {
       const content = pendingContent.current.get(message.id);
       confirmAction('Mensagem não enviada', 'Verifique sua internet e tente de novo.', 'Reenviar', () => {
@@ -327,18 +328,34 @@ export function ChatView({ userId, target }: Props) {
             const older = reversed[index + 1];
             const newer = reversed[index - 1];
             const newDay = !older || !sameDay(older.createdAt, item.createdAt);
-            // Sequência de mensagens seguidas da mesma pessoa no mesmo dia.
-            const firstOfRun = newDay || older.senderId !== item.senderId;
-            const lastOfRun = !newer || newer.senderId !== item.senderId || !sameDay(newer.createdAt, item.createdAt);
+            const dayPill = newDay && (
+              <View style={styles.dayPill}>
+                <Text style={styles.dayText}>{dayLabel(item.createdAt)}</Text>
+              </View>
+            );
+            // Aviso do grupo ("Fulano adicionou Ciclano"): uma faixa no meio, sem balão.
+            if (item.kind === 'system') {
+              return (
+                <View style={{ marginTop: 10 }}>
+                  {dayPill}
+                  <View style={styles.systemPill}>
+                    <Text style={styles.systemText}>{item.body}</Text>
+                  </View>
+                </View>
+              );
+            }
+            // Sequência de mensagens seguidas da mesma pessoa no mesmo dia (um aviso quebra a sequência).
+            const firstOfRun = newDay || older.senderId !== item.senderId || older.kind === 'system';
+            const lastOfRun =
+              !newer ||
+              newer.senderId !== item.senderId ||
+              newer.kind === 'system' ||
+              !sameDay(newer.createdAt, item.createdAt);
             const showName = isClub && !mine && firstOfRun;
             const isText = item.deleted || item.kind === 'text';
             return (
               <View style={{ marginTop: firstOfRun ? 10 : 3 }}>
-                {newDay && (
-                  <View style={styles.dayPill}>
-                    <Text style={styles.dayText}>{dayLabel(item.createdAt)}</Text>
-                  </View>
-                )}
+                {dayPill}
                 <View style={[styles.row, mine && styles.rowMine]}>
                   {isClub && !mine && (
                     <Pressable
@@ -552,6 +569,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
+  systemPill: {
+    alignSelf: 'center',
+    maxWidth: '85%',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+  },
+  systemText: { color: colors.textMuted, fontFamily: fonts.semibold, fontSize: 13, textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
   rowMine: { justifyContent: 'flex-end' },
   avatarSlot: { width: 34 },

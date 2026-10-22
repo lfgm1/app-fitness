@@ -18,6 +18,7 @@ import {
 } from '@/data/social';
 import type { Friendship, SocialProfile } from '@/data/social';
 import { confirmAction, notify } from '@/lib/format';
+import { profileStreak } from '@/lib/streak';
 import { colors, fonts } from '@/theme';
 
 /** Perfil público de outra pessoa. Se o perfil completo for só para amigos, mostra o básico e o pedido. */
@@ -80,7 +81,12 @@ export default function PublicProfileScreen() {
     <ScrollView contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: `@${basic.username}` }} />
       <View style={styles.avatar}>
-        <Avatar name={basic.displayName} icon={basic.avatar} size={110} />
+        <Avatar
+          name={basic.displayName}
+          icon={basic.avatar}
+          size={110}
+          streakWeeks={hidden ? 0 : profileStreak(person)}
+        />
       </View>
       <Text style={styles.name}>{basic.displayName}</Text>
       <Text style={styles.username}>@{basic.username}</Text>
@@ -92,7 +98,7 @@ export default function PublicProfileScreen() {
         </Text>
       ) : (
         <>
-          <PhaseTag person={person} />
+          <PhaseTag person={person} streakWeeks={profileStreak(person)} />
           <View style={styles.statsWrap}>
             <ProfileStats person={person} />
           </View>
