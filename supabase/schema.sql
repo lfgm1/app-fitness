@@ -233,3 +233,27 @@ $$;
 revoke all on function private.purge_deleted_records() from public, anon, authenticated;
 
 select cron.schedule('purge-deleted-records', '0 6 * * *', 'select private.purge_deleted_records()');
+
+-- ---------- Quando o treino foi registrado (para o XP do Frank) ----------
+-- O XP conta 1 por dia em que a pessoa registrou treino. Usa a hora do servidor em que o treino
+-- chegou, não a data escolhida no treino (que pode ser no passado): assim não dá para registrar
+-- vários treinos "de dias atrás" de uma vez só para ganhar XP. Treinos antigos usam a própria data.
+alter table public.sessions add column if not exists created_at timestamptz;
+update public.sessions set created_at = least(date, updated_at) where created_at is null;
+alter table public.sessions alter column created_at set default now();
+alter table public.sessions alter column created_at set not null;
+
+create or replace function private.session_created_at()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if tg_op = 'INSERT' then
+    new.created_at := now();
+  else
+    new.created_at := old.created_at; -- nunca muda depois
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists sessions_created_at on public.sessions;
+create trigger sessions_created_at before insert or update on public.sessions
+  for each row execute function private.session_created_at();

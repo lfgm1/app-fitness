@@ -50,13 +50,13 @@ function GlyphText({ text, x, y, size, fill }: { text: string; x: number; y: num
 
 type Props = {
   phase: FrankPhase;
-  workoutCount: number;
+  xp: number;
   /** "evoluiu": acabou de mudar de fase. "atual": mostrando a fase que a pessoa está. */
   variant: 'evoluiu' | 'atual';
   width?: number;
 };
 
-export function ShareCard({ phase, workoutCount, variant, width = CARD_W }: Props) {
+export function ShareCard({ phase, xp, variant, width = CARD_W }: Props) {
   const name = (FRANK_PHASES.find((p) => p.phase === phase)?.name ?? phase).toUpperCase();
   const headline = variant === 'evoluiu' ? 'EVOLUIU!' : 'MEU FRANK';
   // O título cabe dentro da explosão (no máximo 200 de largura).
@@ -64,9 +64,9 @@ export function ShareCard({ phase, workoutCount, variant, width = CARD_W }: Prop
   const nameSize = Math.min(46, (280 * 100) / (GLYPHS[name]?.w ?? 300));
   const nameWidth = textWidth(name, nameSize);
   const tagH = nameSize * 0.78 + 22;
-  const countWord = workoutCount === 1 ? 'TREINO' : 'TREINOS';
+  const countWord = 'XP';
   const countSize = 30;
-  const numberW = textWidth(String(workoutCount), countSize);
+  const numberW = textWidth(String(xp), countSize);
   const wordW = textWidth(countWord, countSize);
   const countLeft = CARD_W / 2 - (numberW + 10 + wordW) / 2;
 
@@ -126,9 +126,9 @@ export function ShareCard({ phase, workoutCount, variant, width = CARD_W }: Prop
         <GlyphText text={name} x={177} y={530} size={nameSize} fill={C.tinta} />
       </G>
 
-      {/* Treinos */}
+      {/* XP */}
       <G transform={`translate(${countLeft - CARD_W / 2} 0)`}>
-        <GlyphText text={String(workoutCount)} x={CARD_W / 2 + numberW / 2} y={584} size={countSize} fill={C.limao} />
+        <GlyphText text={String(xp)} x={CARD_W / 2 + numberW / 2} y={584} size={countSize} fill={C.limao} />
         <GlyphText text={countWord} x={CARD_W / 2 + numberW + 10 + wordW / 2} y={584} size={countSize} fill={C.pena} />
       </G>
 

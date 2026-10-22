@@ -11,8 +11,8 @@ import { confirmAction } from '@/lib/format';
 import { colors, fonts, outline, radius } from '@/theme';
 
 export default function EditWorkoutScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
-  const { workouts, getExercise, saveWorkout, deleteWorkout } = useStore();
+  const { id, bloco } = useLocalSearchParams<{ id?: string; bloco?: string }>();
+  const { workouts, blocks, getExercise, saveWorkout, saveBlock, deleteWorkout } = useStore();
   const existing = id ? workouts.find((w) => w.id === id) : undefined;
 
   const [name, setName] = useState(existing?.name ?? '');
@@ -22,9 +22,7 @@ export default function EditWorkoutScreen() {
   const canSave = name.trim().length > 0 && exerciseIds.length > 0;
 
   function toggle(exerciseId: string) {
-    setExerciseIds((ids) =>
-      ids.includes(exerciseId) ? ids.filter((x) => x !== exerciseId) : [...ids, exerciseId]
-    );
+    setExerciseIds((ids) => (ids.includes(exerciseId) ? ids.filter((x) => x !== exerciseId) : [...ids, exerciseId]));
   }
 
   function move(index: number, delta: number) {
@@ -38,7 +36,10 @@ export default function EditWorkoutScreen() {
   }
 
   function save() {
-    saveWorkout({ id: existing?.id, name, exerciseIds });
+    const saved = saveWorkout({ id: existing?.id, name, exerciseIds });
+    // Veio de dentro de um bloco: o treino novo já entra no fim dele.
+    const block = !existing && bloco ? blocks.find((b) => b.id === bloco) : undefined;
+    if (block) saveBlock({ ...block, workoutIds: [...block.workoutIds, saved.id] });
     router.back();
   }
 
@@ -85,10 +86,7 @@ export default function EditWorkoutScreen() {
                   <Pressable hitSlop={6} onPress={() => move(index, -1)} disabled={index === 0}>
                     <Ionicons name="chevron-up" size={22} color={index === 0 ? colors.border : colors.textMuted} />
                   </Pressable>
-                  <Pressable
-                    hitSlop={6}
-                    onPress={() => move(index, 1)}
-                    disabled={index === exerciseIds.length - 1}>
+                  <Pressable hitSlop={6} onPress={() => move(index, 1)} disabled={index === exerciseIds.length - 1}>
                     <Ionicons
                       name="chevron-down"
                       size={22}
@@ -133,7 +131,13 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  order: { color: colors.textFaint, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4, width: 18 },
+  order: {
+    color: colors.textFaint,
+    fontFamily: fonts.display,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    width: 18,
+  },
   exName: { color: colors.text, fontSize: 16, fontFamily: fonts.semibold },
   exGroup: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, marginTop: 2 },
 });

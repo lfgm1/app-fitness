@@ -1,5 +1,8 @@
-// Fases do Frank, o mascote: ele evolui conforme o número de treinos registrados.
+// Fases do Frank, o mascote: ele evolui com XP. A pessoa ganha 1 XP por dia em que registra treino
+// (só o primeiro treino do dia conta), para não dar para "upar" registrando vários treinos seguidos.
 // No começo as fases vêm rápido (o primeiro treino já "choca o ovo") para a pessoa pegar o hábito.
+
+import type { Session } from '@/data/store';
 
 export type FrankPhase = 'ovo' | 'pintinho' | 'frango' | 'rato' | 'gymbro' | 'shape' | 'gigachad' | 'aura';
 
@@ -14,14 +17,23 @@ export const FRANK_PHASES: { phase: FrankPhase; name: string; from: number }[] =
   { phase: 'aura', name: 'Aura infinita', from: 200 },
 ];
 
-/** Fase atual, a próxima e quanto falta para chegar nela. */
-export function frankProgress(workoutCount: number) {
+/**
+ * XP do Frank: quantos dias diferentes a pessoa registrou treino. Conta o dia em que o treino foi
+ * registrado no app (não a data escolhida, que pode ser no passado), no fuso do celular.
+ */
+export function frankXp(sessions: Pick<Session, 'date' | 'createdAt'>[]) {
+  const days = new Set(sessions.map((s) => new Date(s.createdAt ?? s.date).toDateString()));
+  return days.size;
+}
+
+/** Fase atual, a próxima e quanto XP falta para chegar nela. */
+export function frankProgress(xp: number) {
   let index = 0;
   FRANK_PHASES.forEach((p, i) => {
-    if (workoutCount >= p.from) index = i;
+    if (xp >= p.from) index = i;
   });
   const current = FRANK_PHASES[index];
   const next = FRANK_PHASES[index + 1];
-  const progress = next ? (workoutCount - current.from) / (next.from - current.from) : 1;
-  return { current, next, remaining: next ? next.from - workoutCount : 0, progress };
+  const progress = next ? (xp - current.from) / (next.from - current.from) : 1;
+  return { current, next, remaining: next ? next.from - xp : 0, progress };
 }

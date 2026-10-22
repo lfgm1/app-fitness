@@ -8,15 +8,16 @@
 // Se a internet cair no meio, nada se perde: a fila continua guardada.
 
 import type { Exercise, MuscleGroup } from './exercises';
-import type { Session, Workout } from './store';
+import type { Session, Workout, WorkoutBlock } from './store';
 import { supabase } from '@/lib/supabase';
 
-export type TableName = 'custom_exercises' | 'workouts' | 'sessions';
+export type TableName = 'custom_exercises' | 'workouts' | 'sessions' | 'workout_blocks';
 
 export type SyncRecord =
   | { table: 'custom_exercises'; record: Exercise }
   | { table: 'workouts'; record: Workout }
-  | { table: 'sessions'; record: Session };
+  | { table: 'sessions'; record: Session }
+  | { table: 'workout_blocks'; record: WorkoutBlock };
 
 export const outboxKey = (table: TableName, id: string) => `${table}:${id}`;
 
@@ -26,7 +27,7 @@ export function parseOutboxKey(key: string) {
 }
 
 const PAGE_SIZE = 1000;
-const TABLES: TableName[] = ['custom_exercises', 'workouts', 'sessions'];
+const TABLES: TableName[] = ['custom_exercises', 'workouts', 'sessions', 'workout_blocks'];
 
 const iso = (value: string) => new Date(value).toISOString();
 
@@ -60,10 +61,19 @@ function toRow(item: SyncRecord, userId: string) {
         exercises: item.record.exercises,
         deleted,
       };
+    case 'workout_blocks':
+      return {
+        user_id: userId,
+        id: item.record.id,
+        name: item.record.name,
+        emoji: item.record.emoji,
+        workout_ids: item.record.workoutIds,
+        created_at: item.record.createdAt,
+        deleted,
+      };
   }
 }
 
- 
 function fromRow(table: TableName, row: any): SyncRecord {
   const base = { id: row.id as string, updatedAt: row.updated_at as string, deleted: Boolean(row.deleted) };
   switch (table) {
@@ -85,7 +95,19 @@ function fromRow(table: TableName, row: any): SyncRecord {
           workoutId: row.workout_id,
           workoutName: row.workout_name,
           date: iso(row.date),
+          createdAt: row.created_at ? iso(row.created_at) : undefined,
           exercises: row.exercises ?? [],
+        },
+      };
+    case 'workout_blocks':
+      return {
+        table,
+        record: {
+          ...base,
+          name: row.name,
+          emoji: row.emoji,
+          workoutIds: row.workout_ids ?? [],
+          createdAt: iso(row.created_at),
         },
       };
   }
@@ -110,7 +132,11 @@ export async function pullChanges(since: string | null) {
   let latest = since;
   for (const table of TABLES) {
     for (let start = 0; ; start += PAGE_SIZE) {
-      let query = supabase.from(table).select('*').order('updated_at').range(start, start + PAGE_SIZE - 1);
+      let query = supabase
+        .from(table)
+        .select('*')
+        .order('updated_at')
+        .range(start, start + PAGE_SIZE - 1);
       if (since) query = query.gt('updated_at', since);
       const { data, error } = await query;
       if (error) throw error;

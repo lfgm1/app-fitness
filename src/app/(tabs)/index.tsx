@@ -11,14 +11,27 @@ import { isTimedExercise } from '@/data/exercises';
 import { useProfile } from '@/data/profile';
 import { useStore } from '@/data/store';
 import type { Workout } from '@/data/store';
-import { frankProgress } from '@/lib/frank';
+import { frankProgress, frankXp } from '@/lib/frank';
 import { formatShortDate } from '@/lib/format';
 import { exerciseHistory } from '@/lib/progress';
 import { useUnits } from '@/lib/units';
 import { colors, fonts, hardShadow } from '@/theme';
 
 const WEEKDAY_LETTERS = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
-const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const MONTHS = [
+  'janeiro',
+  'fevereiro',
+  'março',
+  'abril',
+  'maio',
+  'junho',
+  'julho',
+  'agosto',
+  'setembro',
+  'outubro',
+  'novembro',
+  'dezembro',
+];
 const WEEKDAYS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 
@@ -51,8 +64,9 @@ export default function HomeScreen() {
   const firstName = profile?.name?.split(' ')[0];
   const today = `${WEEKDAYS[now.getDay()]}, ${now.getDate()} de ${MONTHS[now.getMonth()]}`;
 
-  // Fase do Frank, pelo total de treinos registrados.
-  const frank = frankProgress(sessions.length);
+  // Fase do Frank, pelo XP (1 por dia com treino registrado).
+  const xp = frankXp(sessions);
+  const frank = frankProgress(xp);
 
   // Treino em andamento (rascunho salvo).
   const inProgress = workouts.find((w) => drafts[w.id]);
@@ -109,8 +123,8 @@ export default function HomeScreen() {
           <StartLineArt width={220} />
           <Text style={styles.welcomeTitle}>Vamos começar?</Text>
           <Text style={styles.welcomeText}>
-            Monte seu primeiro treino, por exemplo “Peito”, escolhendo os exercícios. Depois é só registrar as cargas
-            e acompanhar sua evolução.
+            Monte seu primeiro treino, por exemplo “Peito”, escolhendo os exercícios. Depois é só registrar as cargas e
+            acompanhar sua evolução.
           </Text>
           <Button title="Criar meu primeiro treino" icon="add" onPress={() => router.push('/treino/editar')} />
         </Card>
@@ -129,9 +143,7 @@ export default function HomeScreen() {
                   <View style={[styles.frankFill, { width: `${Math.round(frank.progress * 100)}%` }]} />
                 </View>
                 <Text style={styles.cardMeta}>
-                  {frank.next
-                    ? `${frank.remaining} treino${frank.remaining === 1 ? '' : 's'} para virar ${frank.next.name}`
-                    : `Fase máxima · ${sessions.length} treinos registrados`}
+                  {frank.next ? `${frank.remaining} XP para virar ${frank.next.name}` : `Fase máxima · ${xp} XP`}
                 </Text>
                 <View style={styles.frankLink}>
                   <Text style={styles.frankLinkText}>Ver evoluções</Text>
@@ -177,8 +189,7 @@ export default function HomeScreen() {
           <SectionTitle>Sua semana</SectionTitle>
           <Card style={{ gap: 14 }}>
             <Text style={styles.weekCount}>
-              <Text style={{ color: colors.primary }}>{weekCount}</Text> treino{weekCount === 1 ? '' : 's'} esta
-              semana
+              <Text style={{ color: colors.primary }}>{weekCount}</Text> treino{weekCount === 1 ? '' : 's'} esta semana
             </Text>
             <View style={styles.days}>
               {WEEKDAY_LETTERS.map((letter, i) => {
@@ -237,10 +248,23 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12, paddingBottom: 32 },
-  greeting: { color: colors.text, fontSize: 40, lineHeight: 41, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  greeting: {
+    color: colors.text,
+    fontSize: 40,
+    lineHeight: 41,
+    fontFamily: fonts.display,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   date: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, marginTop: 2 },
   welcome: { alignItems: 'flex-start', gap: 10, padding: 20 },
-  welcomeTitle: { color: colors.text, fontSize: 25, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  welcomeTitle: {
+    color: colors.text,
+    fontSize: 25,
+    fontFamily: fonts.display,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   welcomeText: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, marginBottom: 6 },
   frankCard: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 },
   frankLink: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 6 },
@@ -249,7 +273,14 @@ const styles = StyleSheet.create({
   frankFill: { height: 6, borderRadius: 3, backgroundColor: colors.primary },
   highlight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardLabel: { color: colors.textMuted, fontFamily: fonts.semibold, fontSize: 14 },
-  cardTitle: { color: colors.text, fontSize: 23, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 },
+  cardTitle: {
+    color: colors.text,
+    fontSize: 23,
+    fontFamily: fonts.display,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginTop: 2,
+  },
   cardMeta: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, marginTop: 2 },
   weekCount: { color: colors.text, fontSize: 16, fontFamily: fonts.bold },
   days: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -268,7 +299,13 @@ const styles = StyleSheet.create({
   weekHighlight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   weekHighlightTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   weekHighlightRecord: { borderColor: colors.bico, ...hardShadow(colors.bico) },
-  highlightName: { color: colors.text, fontSize: 22, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  highlightName: {
+    color: colors.text,
+    fontSize: 22,
+    fontFamily: fonts.display,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   moreLink: { alignSelf: 'flex-end', marginTop: -2 },
   moreText: { color: colors.primary, fontFamily: fonts.bold, fontSize: 14 },
 });

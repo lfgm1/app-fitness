@@ -17,7 +17,7 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   phase: FrankPhase;
-  workoutCount: number;
+  xp: number;
   variant: 'evoluiu' | 'atual';
 };
 
@@ -28,7 +28,7 @@ export function ShareSheet(props: Props) {
   return props.visible ? <ShareSheetContent {...props} /> : null;
 }
 
-function ShareSheetContent({ onClose, phase, workoutCount, variant }: Props) {
+function ShareSheetContent({ onClose, phase, xp, variant }: Props) {
   const cardRef = useRef<ComponentRef<typeof View>>(null);
   const [payload, setPayload] = useState<SharePayload | null>(null);
   const [preparing, setPreparing] = useState(true);
@@ -51,7 +51,7 @@ function ShareSheetContent({ onClose, phase, workoutCount, variant }: Props) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [phase, workoutCount, variant]);
+  }, [phase, xp, variant]);
 
   const name = FRANK_PHASES.find((p) => p.phase === phase)?.name ?? phase;
   const message =
@@ -75,7 +75,7 @@ function ShareSheetContent({ onClose, phase, workoutCount, variant }: Props) {
         <Pressable style={styles.sheet} onPress={() => {}}>
           <Text style={styles.title}>Compartilhar</Text>
           <View ref={cardRef} collapsable={false} style={styles.card}>
-            <ShareCard phase={phase} workoutCount={workoutCount} variant={variant} width={PREVIEW_W} />
+            <ShareCard phase={phase} xp={xp} variant={variant} width={PREVIEW_W} />
           </View>
           <Button
             title={preparing ? 'Preparando imagem...' : 'Compartilhar imagem'}

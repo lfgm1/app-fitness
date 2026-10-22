@@ -12,22 +12,28 @@ import { colors, fonts, hardShadow, outline, radius } from '@/theme';
 
 export function DialogHost() {
   const [dialog, setDialog] = useState<DialogRequest | null>(null);
+  // Aberta ou não fica separado do conteúdo: ao fechar, o texto continua na tela enquanto a janela
+  // some (senão, durante a animação, aparecia uma janela vazia com o botão "Entendi").
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
-    setDialogHandler(setDialog);
+    setDialogHandler((request) => {
+      setDialog(request);
+      setOpen(true);
+    });
     return () => setDialogHandler(null);
   }, []);
 
-  const close = () => setDialog(null);
+  const close = () => setOpen(false);
   const confirm = () => {
     const action = dialog?.onConfirm;
-    setDialog(null);
+    setOpen(false);
     action?.();
   };
 
   return (
-    <Modal visible={dialog !== null} transparent animationType="fade" onRequestClose={close}>
+    <Modal visible={open} transparent animationType="fade" onRequestClose={close}>
       <Pressable style={styles.backdrop} onPress={close} accessibilityLabel="Fechar">
         {/* Tocar dentro do card não fecha a janela */}
         <Pressable style={styles.card} onPress={() => {}} accessibilityRole="alert">
@@ -70,7 +76,13 @@ const styles = StyleSheet.create({
     ...outline,
     ...hardShadow(colors.primary),
   },
-  title: { color: colors.text, fontFamily: fonts.display, fontSize: 26, textTransform: 'uppercase', letterSpacing: 0.4 },
+  title: {
+    color: colors.text,
+    fontFamily: fonts.display,
+    fontSize: 26,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   message: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 6 },
   flex: { flex: 1 },

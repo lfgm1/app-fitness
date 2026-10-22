@@ -15,11 +15,11 @@ import { colors, fonts, outlineColor } from '@/theme';
 type Props = {
   visible: boolean;
   phase: FrankPhase;
-  workoutCount: number;
+  xp: number;
   onClose: () => void;
 };
 
-export function EvolutionModal({ visible, phase, workoutCount, onClose }: Props) {
+export function EvolutionModal({ visible, phase, xp, onClose }: Props) {
   const [sharing, setSharing] = useState(false);
   const name = FRANK_PHASES.find((p) => p.phase === phase)?.name ?? phase;
 
@@ -33,22 +33,14 @@ export function EvolutionModal({ visible, phase, workoutCount, onClose }: Props)
             <Text style={styles.tagText}>{name}</Text>
           </View>
           <Text style={styles.unlocked}>Nova fase desbloqueada</Text>
-          <Text style={styles.count}>
-            {workoutCount} treino{workoutCount === 1 ? '' : 's'} registrado{workoutCount === 1 ? '' : 's'}
-          </Text>
+          <Text style={styles.count}>{xp} XP</Text>
         </View>
         <View style={styles.actions}>
           <Button title="Compartilhar" icon="share-social-outline" onPress={() => setSharing(true)} />
           <Button title="Continuar" variant="secondary" onPress={onClose} />
         </View>
       </SafeAreaView>
-      <ShareSheet
-        visible={sharing}
-        onClose={() => setSharing(false)}
-        phase={phase}
-        workoutCount={workoutCount}
-        variant="evoluiu"
-      />
+      <ShareSheet visible={sharing} onClose={() => setSharing(false)} phase={phase} xp={xp} variant="evoluiu" />
     </Modal>
   );
 }

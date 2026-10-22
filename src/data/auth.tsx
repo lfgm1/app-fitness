@@ -18,7 +18,7 @@ type Auth = {
   recoveringPassword: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   /** Retorna true se a conta precisa ser confirmada com o código enviado por e-mail. */
-  signUp: (email: string, password: string, name: string, birthDate: string) => Promise<boolean>;
+  signUp: (email: string, password: string, name: string, birthDate: string, username: string) => Promise<boolean>;
   confirmEmail: (email: string, code: string) => Promise<void>;
   resendConfirmation: (email: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
@@ -85,12 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
       },
 
-      signUp: async (email, password, name, birthDate) => {
-        // O nome e o nascimento vão como metadados; o banco cria o perfil a partir deles.
+      signUp: async (email, password, name, birthDate, username) => {
+        // Nome, nascimento e @ vão como metadados; o banco cria o perfil e o perfil do Clube a partir deles.
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { data: { name: name.trim(), birth_date: birthDate } },
+          options: { data: { name: name.trim(), birth_date: birthDate, username } },
         });
         if (error) throw error;
         // Se a conta já existe, o Supabase devolve um usuário sem identidades.

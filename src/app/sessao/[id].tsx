@@ -10,7 +10,7 @@ import { FrankHead } from '@/components/Frank';
 import { Button, Card, EmptyState, PRBadge, StatusBadge } from '@/components/ui';
 import { useStore } from '@/data/store';
 import { confirmAction, formatDateLong } from '@/lib/format';
-import { frankProgress } from '@/lib/frank';
+import { frankProgress, frankXp } from '@/lib/frank';
 import { useUnits } from '@/lib/units';
 import { STATUS_INFO, bestSet, compareSets, isPersonalRecord, previousSets } from '@/lib/progress';
 import type { ProgressStatus } from '@/lib/progress';
@@ -24,12 +24,17 @@ export default function SessionScreen() {
   const [evolutionSeen, setEvolutionSeen] = useState(false);
 
   if (!session) {
-    return <EmptyState icon="alert-circle-outline" title="Registro não encontrado" text="Ele pode ter sido excluído." />;
+    return (
+      <EmptyState icon="alert-circle-outline" title="Registro não encontrado" text="Ele pode ter sido excluído." />
+    );
   }
 
-  // O Frank muda de fase quando o total de treinos cruza o início de uma fase (veja lib/frank).
-  const phaseNow = frankProgress(sessions.length).current;
-  const newPhase = phaseNow.phase !== frankProgress(sessions.length - 1).current.phase ? phaseNow : null;
+  // O Frank muda de fase quando o XP cruza o início de uma fase (veja lib/frank). Compara com o XP
+  // sem este treino: se ele foi o primeiro do dia, deu 1 XP.
+  const xpNow = frankXp(sessions);
+  const phaseNow = frankProgress(xpNow).current;
+  const xpBefore = frankXp(sessions.filter((s) => s.id !== session.id));
+  const newPhase = phaseNow.phase !== frankProgress(xpBefore).current.phase ? phaseNow : null;
 
   const results = session.exercises.map((ex) => ({
     ...ex,
@@ -72,13 +77,13 @@ export default function SessionScreen() {
         <EvolutionModal
           visible={!evolutionSeen}
           phase={newPhase.phase}
-          workoutCount={sessions.length}
+          xp={xpNow}
           onClose={() => setEvolutionSeen(true)}
         />
       )}
 
-      {novo === '1' && (
-        prCount > 0 ? (
+      {novo === '1' &&
+        (prCount > 0 ? (
           <Card style={styles.prCard}>
             <RecordBurst size="large" label={prCount > 1 ? `${prCount} recordes!` : 'Recorde!'} />
             <Text style={styles.bannerTitle}>Treino salvo</Text>
@@ -94,8 +99,7 @@ export default function SessionScreen() {
               </Text>
             </View>
           </Card>
-        )
-      )}
+        ))}
 
       <View>
         <Text style={styles.title}>{session.workoutName}</Text>
@@ -154,9 +158,21 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 10 },
   content: { padding: 16, gap: 12, paddingBottom: 40 },
   banner: { flexDirection: 'row', alignItems: 'center', gap: 14, borderColor: colors.crista },
-  bannerTitle: { color: colors.text, fontSize: 23, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  bannerTitle: {
+    color: colors.text,
+    fontSize: 23,
+    fontFamily: fonts.display,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   bannerText: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, marginTop: 2, lineHeight: 20 },
-  title: { color: colors.text, fontSize: 33, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  title: {
+    color: colors.text,
+    fontSize: 33,
+    fontFamily: fonts.display,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   date: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, marginTop: 2 },
   exHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   exName: { color: colors.text, fontSize: 17, fontFamily: fonts.bold, flex: 1 },
@@ -164,6 +180,12 @@ const styles = StyleSheet.create({
   setLabel: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15 },
   setValue: { color: colors.text, fontSize: 15, fontFamily: fonts.mono },
   setValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  prCard: { alignItems: 'center', gap: 6, paddingVertical: 20, borderColor: colors.bico, boxShadow: `4px 4px 0px ${colors.bico}` },
+  prCard: {
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 20,
+    borderColor: colors.bico,
+    boxShadow: `4px 4px 0px ${colors.bico}`,
+  },
   statusText: { fontSize: 13, fontFamily: fonts.bold, marginTop: 2 },
 });

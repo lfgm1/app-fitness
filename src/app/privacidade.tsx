@@ -14,6 +14,13 @@ const SECTIONS: { title: string; paragraphs: string[] }[] = [
     ],
   },
   {
+    title: 'Social (amigos e clubes)',
+    paragraphs: [
+      'Na aba Social, existe um perfil público com seu @, o nome que você escolher, o Frank da sua fase e um resumo dos números (treinos, recordes e treinos da semana). Você escolhe quem pode ver esse perfil (só amigos e quem está nos seus clubes, ou qualquer pessoa do app) e se o número de recordes aparece. Seus treinos detalhados (cargas e séries) nunca aparecem para os outros.',
+      'Mensagens e treinos enviados ficam guardados para que você e as outras pessoas da conversa possam vê-los. Mensagens no privado só são possíveis entre amigos. Você pode apagar suas mensagens, bloquear pessoas e denunciar perfis ou mensagens; as denúncias são analisadas por nós e a pessoa denunciada não fica sabendo quem denunciou.',
+    ],
+  },
+  {
     title: 'Para que usamos',
     paragraphs: [
       'Usamos esses dados apenas para o funcionamento do app: guardar seus treinos, mostrar sua evolução, personalizar metas e permitir que você acesse seus dados em qualquer aparelho.',
@@ -30,7 +37,7 @@ const SECTIONS: { title: string; paragraphs: string[] }[] = [
   {
     title: 'Seus direitos (LGPD)',
     paragraphs: [
-      'Você pode, a qualquer momento: ver e corrigir seus dados na aba Perfil; apagar treinos e registros; e excluir sua conta em Configurações > Excluir conta, o que apaga permanentemente todos os seus dados dos nossos servidores.',
+      'Você pode, a qualquer momento: ver e corrigir seus dados na aba Perfil; apagar treinos e registros; e excluir sua conta em Configurações > Excluir conta, o que apaga permanentemente todos os seus dados dos nossos servidores, incluindo seu perfil público, amizades, clubes que você criou e suas mensagens.',
     ],
   },
   {

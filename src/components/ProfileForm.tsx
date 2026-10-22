@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { TextInputProps } from 'react-native';
 
@@ -32,9 +33,17 @@ type Props = {
   /** onboarding: logo após criar a conta (pode pular). edit: editar pelo menu da conta. */
   mode: 'onboarding' | 'edit';
   onSave: (profile: Profile) => Promise<void>;
+  /** Perfil público: o @ (logo depois do Nome) e quem pode ver (no fim), salvos pelo mesmo botão. */
+  extra?: {
+    avatarElement: ReactNode;
+    usernameElement: ReactNode;
+    visibilityElement: ReactNode;
+    problem: string | null;
+    save: (name: string) => Promise<void>;
+  };
 };
 
-export function ProfileForm({ initial, mode, onSave }: Props) {
+export function ProfileForm({ initial, mode, onSave, extra }: Props) {
   const [name, setName] = useState(initial.name ?? '');
   const [birth, setBirth] = useState(initial.birthDate ? formatBirthDate(initial.birthDate) : '');
   const [sex, setSex] = useState<Sex | null>(initial.sex);
@@ -42,9 +51,7 @@ export function ProfileForm({ initial, mode, onSave }: Props) {
   // O peso é digitado na unidade escolhida nas configurações (kg ou lb) e salvo em kg.
   const unit = initial.weightUnit;
   const [minWeight, maxWeight] = unit === 'kg' ? [30, 300] : [66, 661];
-  const [weight, setWeight] = useState(
-    initial.weightKg ? String(Math.round(kgToUnit(initial.weightKg, unit))) : ''
-  );
+  const [weight, setWeight] = useState(initial.weightKg ? String(Math.round(kgToUnit(initial.weightKg, unit))) : '');
   const [experience, setExperience] = useState<Experience | null>(initial.experience);
   // Meta de passos: uma das opções prontas ou "custom" (valor digitado pela pessoa).
   const initialSteps = initial.dailyStepGoal;
@@ -113,18 +120,32 @@ export function ProfileForm({ initial, mode, onSave }: Props) {
       setError(result);
       return;
     }
+    if (!skip && extra?.problem) {
+      setError(extra.problem);
+      return;
+    }
     setBusy(true);
     try {
+      // O perfil público primeiro: se o @ não puder ser usado, nada é salvo pela metade.
+      if (!skip) await extra?.save(result.name ?? '');
       await onSave(result);
-    } catch {
-      setError('Não foi possível salvar. Verifique sua conexão com a internet e tente de novo.');
+    } catch (e) {
+      const message = (e as Error).message;
+      setError(
+        message.includes('@')
+          ? message
+          : 'Não foi possível salvar. Verifique sua conexão com a internet e tente de novo.'
+      );
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+    <ScrollView
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets>
       {mode === 'onboarding' && (
         <View style={{ gap: 6 }}>
           <Text style={styles.title}>Complete seu perfil</Text>
@@ -134,8 +155,10 @@ export function ProfileForm({ initial, mode, onSave }: Props) {
         </View>
       )}
 
+      {extra?.avatarElement}
       <SectionTitle>Sobre você</SectionTitle>
       <Field value={name} onChangeText={setName} placeholder="Nome" autoCapitalize="words" maxLength={100} />
+      {extra?.usernameElement}
       <Field
         value={birth}
         onChangeText={(v) => setBirth(maskDate(v))}
@@ -150,7 +173,7 @@ export function ProfileForm({ initial, mode, onSave }: Props) {
           <Field
             value={height}
             onChangeText={(v) => setHeight(onlyDigits(v))}
-            placeholder="Altura (cm)"
+            placeholder="Altura (cm) · opcional"
             keyboardType="number-pad"
             maxLength={3}
           />
@@ -159,15 +182,21 @@ export function ProfileForm({ initial, mode, onSave }: Props) {
           <Field
             value={weight}
             onChangeText={(v) => setWeight(onlyDigits(v))}
-            placeholder={`Peso (${unit})`}
+            placeholder={`Peso (${unit}) · opcional`}
             keyboardType="number-pad"
             maxLength={3}
           />
         </View>
       </View>
+      <Text style={styles.hint}>Altura e peso são opcionais: deixe em branco se não quiser informar.</Text>
 
       <SectionTitle>Experiência na academia</SectionTitle>
-      <Choices options={EXPERIENCE_LABELS} descriptions={EXPERIENCE_HINTS} value={experience} onChange={setExperience} />
+      <Choices
+        options={EXPERIENCE_LABELS}
+        descriptions={EXPERIENCE_HINTS}
+        value={experience}
+        onChange={setExperience}
+      />
 
       <SectionTitle>Meta diária de passos</SectionTitle>
       <Pressable
@@ -187,7 +216,11 @@ export function ProfileForm({ initial, mode, onSave }: Props) {
             return (
               <Pressable
                 key={key}
-                style={({ pressed }) => [styles.listRow, index > 0 && styles.listDivider, pressed && styles.listPressed]}
+                style={({ pressed }) => [
+                  styles.listRow,
+                  index > 0 && styles.listDivider,
+                  pressed && styles.listPressed,
+                ]}
                 onPress={() => {
                   setStepChoice(key);
                   setStepsOpen(false);
@@ -220,11 +253,11 @@ export function ProfileForm({ initial, mode, onSave }: Props) {
             maxLength={13}
             autoFocus={!customSteps}
           />
-          <Text style={styles.hint}>
-            Mínimo de {formatSteps(MIN_STEPS)} passos.
-          </Text>
+          <Text style={styles.hint}>Mínimo de {formatSteps(MIN_STEPS)} passos.</Text>
         </>
       )}
+
+      {extra?.visibilityElement}
 
       {error && <Text style={styles.error}>{error}</Text>}
 
@@ -287,13 +320,20 @@ function Choices<T extends string>({
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12, paddingBottom: 40, maxWidth: 560, width: '100%', alignSelf: 'center' },
-  title: { color: colors.text, fontSize: 33, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4 },
+  title: {
+    color: colors.text,
+    fontSize: 33,
+    fontFamily: fonts.display,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   subtitle: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22 },
   row: { flexDirection: 'row', gap: 10 },
   input: {
     backgroundColor: colors.card,
     color: colors.text,
-    fontFamily: fonts.regular, fontSize: 16,
+    fontFamily: fonts.regular,
+    fontSize: 16,
     paddingHorizontal: 14,
     paddingVertical: 14,
     borderRadius: radius,

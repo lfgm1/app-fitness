@@ -31,6 +31,20 @@ export type Workout = {
   deleted?: boolean;
 };
 
+/**
+ * Bloco de treino: uma pasta com treinos em ordem (ex.: "PPL + UP"), só para organizar.
+ * O mesmo treino pode estar em vários blocos.
+ */
+export type WorkoutBlock = {
+  id: string;
+  name: string;
+  emoji: string;
+  workoutIds: string[];
+  createdAt: string;
+  updatedAt?: string;
+  deleted?: boolean;
+};
+
 /** Um treino feito em um dia, com as cargas e repetições de cada série. */
 export type Session = {
   id: string;
@@ -38,6 +52,8 @@ export type Session = {
   workoutName: string;
   date: string;
   exercises: SessionExercise[];
+  /** Quando foi registrado no app (o servidor confirma). É o que conta para o XP do Frank. */
+  createdAt?: string;
   updatedAt?: string;
   deleted?: boolean;
 };
@@ -61,6 +77,7 @@ type Data = {
   customExercises: Exercise[];
   workouts: Workout[];
   sessions: Session[];
+  blocks: WorkoutBlock[];
   /** Fila de envio: registros alterados no celular que o banco ainda não confirmou. */
   outbox: string[];
   /** Até quando já baixamos as mudanças do banco. */
@@ -77,6 +94,7 @@ const emptyData = (ownerId: string): Data => ({
   customExercises: [],
   workouts: [],
   sessions: [],
+  blocks: [],
   outbox: [],
   lastPulledAt: null,
 });
@@ -93,12 +111,13 @@ export async function clearLocalData() {
 
 // --- Ajudantes para ler e alterar as três coleções de forma genérica ---
 
-type AnyRecord = Exercise | Workout | Session;
+type AnyRecord = Exercise | Workout | Session | WorkoutBlock;
 
 const COLLECTION = {
   custom_exercises: 'customExercises',
   workouts: 'workouts',
   sessions: 'sessions',
+  workout_blocks: 'blocks',
 } as const satisfies Record<TableName, keyof Data>;
 
 function getRecord(data: Data, table: TableName, id: string): AnyRecord | undefined {
@@ -131,7 +150,8 @@ function adoptLocalData(raw: Partial<Data> | null, userId: string): { data: Data
   if (raw.ownerId && raw.ownerId !== userId) return { data: emptyData(userId), keepDrafts: false };
 
   const now = new Date().toISOString();
-  const stamp = <T extends AnyRecord>(list: T[] | undefined) => (list ?? []).map((r) => ({ ...r, updatedAt: r.updatedAt ?? now }));
+  const stamp = <T extends AnyRecord>(list: T[] | undefined) =>
+    (list ?? []).map((r) => ({ ...r, updatedAt: r.updatedAt ?? now }));
   const data: Data = {
     ...emptyData(userId),
     ...raw,
@@ -139,6 +159,7 @@ function adoptLocalData(raw: Partial<Data> | null, userId: string): { data: Data
     customExercises: stamp(raw.customExercises),
     workouts: stamp(raw.workouts),
     sessions: stamp(raw.sessions),
+    blocks: stamp(raw.blocks),
     outbox: raw.outbox ?? [],
     lastPulledAt: raw.lastPulledAt ?? null,
   };
@@ -149,6 +170,7 @@ function adoptLocalData(raw: Partial<Data> | null, userId: string): { data: Data
       ...data.customExercises.map((r) => outboxKey('custom_exercises', r.id)),
       ...data.workouts.map((r) => outboxKey('workouts', r.id)),
       ...data.sessions.map((r) => outboxKey('sessions', r.id)),
+      ...data.blocks.map((r) => outboxKey('workout_blocks', r.id)),
     ];
     data.lastPulledAt = null;
   }
@@ -161,6 +183,7 @@ type Store = {
   customExercises: Exercise[];
   workouts: Workout[];
   sessions: Session[];
+  blocks: WorkoutBlock[];
   drafts: Record<string, Draft>;
   syncNow: () => Promise<void>;
   /** Quantas alterações ainda não chegaram ao banco (valor atualizado na hora). */
@@ -171,7 +194,9 @@ type Store = {
   deleteCustomExercise: (id: string) => void;
   saveWorkout: (workout: Pick<Workout, 'name' | 'exerciseIds'> & { id?: string }) => Workout;
   deleteWorkout: (id: string) => void;
-  addSession: (session: Omit<Session, 'id'>) => Session;
+  saveBlock: (block: Pick<WorkoutBlock, 'name' | 'emoji' | 'workoutIds'> & { id?: string }) => WorkoutBlock;
+  deleteBlock: (id: string) => void;
+  addSession: (session: Omit<Session, 'id' | 'createdAt'>) => Session;
   /** Corrige um treino já registrado (data e séries). */
   updateSession: (id: string, changes: Pick<Session, 'date' | 'exercises'>) => void;
   deleteSession: (id: string) => void;
@@ -347,6 +372,7 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
     const byId = new Map([...DEFAULT_EXERCISES, ...data.customExercises].map((e) => [e.id, e]));
     const workouts = data.workouts.filter((w) => !w.deleted);
     const sessions = data.sessions.filter((s) => !s.deleted);
+    const blocks = data.blocks.filter((b) => !b.deleted);
 
     return {
       loaded,
@@ -354,6 +380,7 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       customExercises,
       workouts,
       sessions,
+      blocks,
       drafts,
       syncNow,
       pendingNow: () => dataRef.current.outbox.length,
@@ -388,11 +415,32 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       deleteWorkout: (id) => {
         const existing = dataRef.current.workouts.find((w) => w.id === id);
         if (existing) commit('workouts', { ...existing, deleted: true });
+        // Sai também dos blocos em que estava.
+        for (const block of dataRef.current.blocks) {
+          if (!block.deleted && block.workoutIds.includes(id)) {
+            commit('workout_blocks', { ...block, workoutIds: block.workoutIds.filter((x) => x !== id) });
+          }
+        }
         clearDraft(id);
       },
 
+      saveBlock: ({ id, name, emoji, workoutIds }) => {
+        const existing = id ? dataRef.current.blocks.find((b) => b.id === id) : undefined;
+        const block: WorkoutBlock = existing
+          ? { ...existing, name: name.trim(), emoji, workoutIds }
+          : { id: newId(), name: name.trim(), emoji, workoutIds, createdAt: new Date().toISOString() };
+        commit('workout_blocks', block);
+        return block;
+      },
+
+      deleteBlock: (id) => {
+        // Os treinos do bloco continuam existindo (só a pasta some).
+        const existing = dataRef.current.blocks.find((b) => b.id === id);
+        if (existing) commit('workout_blocks', { ...existing, deleted: true });
+      },
+
       addSession: (session) => {
-        const saved: Session = { ...session, id: newId() };
+        const saved: Session = { ...session, id: newId(), createdAt: new Date().toISOString() };
         commit('sessions', saved);
         return saved;
       },

@@ -6,34 +6,31 @@ import { Frank } from '@/components/Frank';
 import { ShareSheet } from '@/components/ShareSheet';
 import { Button, Card } from '@/components/ui';
 import { useStore } from '@/data/store';
-import { FRANK_PHASES, frankProgress } from '@/lib/frank';
+import { FRANK_PHASES, frankProgress, frankXp } from '@/lib/frank';
 import { colors, fonts } from '@/theme';
 
 function rangeLabel(index: number) {
   const phase = FRANK_PHASES[index];
   const next = FRANK_PHASES[index + 1];
-  if (!next) return `${phase.from}+ treinos`;
+  if (!next) return `${phase.from}+ XP`;
   const last = next.from - 1;
-  if (last === phase.from) return `${phase.from} treino${phase.from === 1 ? '' : 's'}`;
-  return `${phase.from} a ${last} treinos`;
+  if (last === phase.from) return `${phase.from} XP`;
+  return `${phase.from} a ${last} XP`;
 }
 
 /** Todas as fases do Frank: as já alcançadas, a atual e as que ainda faltam. */
 export default function FrankEvolutionsScreen() {
   const { sessions } = useStore();
   const [sharing, setSharing] = useState(false);
-  const count = sessions.length;
+  const count = frankXp(sessions);
   const { current } = frankProgress(count);
   const currentIndex = FRANK_PHASES.findIndex((p) => p.phase === current.phase);
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.intro}>
-        O Frank evolui conforme você registra treinos. Você tem{' '}
-        <Text style={styles.count}>
-          {count} treino{count === 1 ? '' : 's'}
-        </Text>{' '}
-        registrado{count === 1 ? '' : 's'}.
+        O Frank evolui com XP: você ganha 1 XP por dia em que registra treino (só o primeiro treino do dia conta). Você
+        tem <Text style={styles.count}>{count} XP</Text>.
       </Text>
 
       <Button title="Compartilhar meu Frank" icon="share-social-outline" onPress={() => setSharing(true)} />
@@ -60,11 +57,7 @@ export default function FrankEvolutionsScreen() {
                   <Text style={styles.badgeText}>Você está aqui</Text>
                 </View>
               )}
-              {locked && (
-                <Text style={styles.remaining}>
-                  Faltam {remaining} treino{remaining === 1 ? '' : 's'}
-                </Text>
-              )}
+              {locked && <Text style={styles.remaining}>Faltam {remaining} XP</Text>}
             </View>
           </Card>
         );
@@ -74,7 +67,7 @@ export default function FrankEvolutionsScreen() {
         visible={sharing}
         onClose={() => setSharing(false)}
         phase={current.phase}
-        workoutCount={count}
+        xp={count}
         variant="atual"
       />
     </ScrollView>
@@ -109,6 +102,12 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     marginTop: 4,
   },
-  badgeText: { color: colors.primaryText, fontFamily: fonts.mono, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 },
+  badgeText: {
+    color: colors.primaryText,
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
   remaining: { color: colors.textFaint, fontFamily: fonts.mono, fontSize: 12, marginTop: 4 },
 });

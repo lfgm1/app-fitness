@@ -1,8 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import type { ReactNode } from 'react';
 
 import { Button, Card, SectionTitle } from '@/components/ui';
@@ -10,6 +10,7 @@ import type { IconName } from '@/components/ui';
 import { useAuth } from '@/data/auth';
 import { useProfile } from '@/data/profile';
 import type { Profile, WeightUnit } from '@/data/profile';
+import { getProfile, setReadReceipts } from '@/data/social';
 import { clearLocalData, useStore } from '@/data/store';
 import { confirmAction, notify } from '@/lib/format';
 import { colors, fonts } from '@/theme';
@@ -23,6 +24,29 @@ export default function SettingsScreen() {
   const { syncNow, pendingNow } = useStore();
   const [leaving, setLeaving] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Confirmação de leitura (risquinhos azuis). null = ainda carregando ou sem perfil no Social.
+  const [readReceipts, setReadReceiptsState] = useState<boolean | null>(null);
+  const userId = session?.user.id;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) return;
+      getProfile(userId)
+        .then((p) => setReadReceiptsState(p ? p.readReceipts : null))
+        .catch(() => {});
+    }, [userId])
+  );
+
+  async function toggleReadReceipts(on: boolean) {
+    if (!userId) return;
+    setReadReceiptsState(on);
+    try {
+      await setReadReceipts(userId, on);
+    } catch {
+      setReadReceiptsState(!on);
+      notify('Não foi possível salvar', 'Verifique sua conexão com a internet e tente de novo.');
+    }
+  }
 
   // Contas criadas só com o Google não têm senha para alterar.
   const hasPassword = session?.user.app_metadata.providers?.includes('email') ?? false;
@@ -116,7 +140,31 @@ export default function SettingsScreen() {
 
       <SectionTitle>Dados e privacidade</SectionTitle>
       <Card style={styles.group}>
-        <Row icon="shield-checkmark-outline" label="Política de privacidade" onPress={() => router.push('/privacidade')} />
+        {readReceipts !== null && (
+          <Row
+            icon="checkmark-done-outline"
+            label="Confirmação de leitura"
+            hint="Desligada, ninguém vê quando você leu, e você também não vê quando os outros leram">
+            <Switch
+              value={readReceipts}
+              onValueChange={toggleReadReceipts}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={colors.pena}
+            />
+          </Row>
+        )}
+        <Row
+          icon="ban-outline"
+          label="Pessoas bloqueadas"
+          onPress={() => router.push('/bloqueados')}
+          divider={readReceipts !== null}
+        />
+        <Row
+          icon="shield-checkmark-outline"
+          label="Política de privacidade"
+          onPress={() => router.push('/privacidade')}
+          divider
+        />
       </Card>
 
       <SectionTitle>Sobre</SectionTitle>
@@ -193,7 +241,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepperValue: { color: colors.text, fontSize: 20, fontFamily: fonts.display, textTransform: 'uppercase', letterSpacing: 0.4, minWidth: 28, textAlign: 'center' },
+  stepperValue: {
+    color: colors.text,
+    fontSize: 20,
+    fontFamily: fonts.display,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    minWidth: 28,
+    textAlign: 'center',
+  },
   deleteLink: { alignSelf: 'center', padding: 12 },
   deleteText: { color: colors.danger, fontSize: 14, fontFamily: fonts.semibold },
 });

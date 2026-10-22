@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { TextInputProps } from 'react-native';
@@ -9,6 +9,7 @@ import { FrankHead } from '@/components/Frank';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui';
 import { authErrorMessage, useAuth } from '@/data/auth';
+import { isValidUsername, usernameAvailable } from '@/data/social';
 import { ageFrom, maskDate, parseBirthDate } from '@/lib/format';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { colors, fonts, hardShadow, outline, outlineColor, radius } from '@/theme';
@@ -40,6 +41,9 @@ export function LoginScreen() {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [birth, setBirth] = useState('');
+  // O @ do Clube, escolhido no cadastro (não pode repetir).
+  const [username, setUsername] = useState('');
+  const [usernameFree, setUsernameFree] = useState<boolean | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,13 +84,41 @@ export function LoginScreen() {
         : age < MIN_AGE
           ? `É preciso ter pelo menos ${MIN_AGE} anos.`
           : null;
-  const validSignup = name.trim().length >= 2 && birthIso !== null && birthError === null;
+  const validUsername = isValidUsername(username);
+  const validSignup =
+    name.trim().length >= 2 && birthIso !== null && birthError === null && validUsername && usernameFree === true;
+
+  // Confere se o @ está livre um pouco depois de a pessoa parar de digitar.
+  useEffect(() => {
+    if (mode !== 'criar' || !validUsername) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      usernameAvailable(username)
+        .then((free) => !cancelled && setUsernameFree(free))
+        .catch(() => !cancelled && setUsernameFree(null));
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [mode, username, validUsername]);
+
+  const usernameHint =
+    username.length === 0
+      ? null
+      : !validUsername
+        ? { text: 'De 3 a 20 letras minúsculas, números, ponto ou _', color: colors.textMuted }
+        : usernameFree === false
+          ? { text: 'Este @ já está em uso. Escolha outro.', color: colors.danger }
+          : usernameFree === true
+            ? { text: '✓ Disponível', color: colors.primary }
+            : null;
 
   const submit = {
     entrar: () => run(() => auth.signIn(email, password)),
     criar: () =>
       run(async () => {
-        const needsConfirmation = await auth.signUp(email, password, name, birthIso!);
+        const needsConfirmation = await auth.signUp(email, password, name, birthIso!, username);
         if (needsConfirmation) go('confirmar');
       }),
     confirmar: () => run(() => auth.confirmEmail(email, code)),
@@ -159,6 +191,20 @@ export function LoginScreen() {
                   textContentType="name"
                   maxLength={100}
                 />
+                <Field
+                  icon="at-outline"
+                  value={username}
+                  onChangeText={(v) => {
+                    setUsername(v.toLowerCase().replace(/[^a-z0-9._]/g, ''));
+                    setUsernameFree(null);
+                  }}
+                  placeholder="Nome de usuário (seu @)"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="username-new"
+                  maxLength={20}
+                />
+                {usernameHint && <Text style={[styles.fieldHint, { color: usernameHint.color }]}>{usernameHint.text}</Text>}
                 <Field
                   icon="calendar-outline"
                   value={birth}
@@ -364,6 +410,7 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fonts.regular, fontSize: 16, paddingVertical: 14 },
   error: { color: colors.danger, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
+  fieldHint: { fontFamily: fonts.semibold, fontSize: 13, marginTop: -4, paddingHorizontal: 4 },
   fieldError: { color: colors.danger, fontFamily: fonts.regular, fontSize: 13, marginTop: -4, paddingHorizontal: 4 },
   info: { color: colors.primary, fontFamily: fonts.regular, fontSize: 14 },
   linkWrap: { alignSelf: 'center', paddingVertical: 6 },
