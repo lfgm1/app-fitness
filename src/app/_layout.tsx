@@ -63,6 +63,7 @@ function Navigator() {
         <Stack.Screen name="bloco/editar" options={{ title: 'Bloco de treino' }} />
         <Stack.Screen name="registrar/[id]" options={{ title: 'Registrar treino' }} />
         <Stack.Screen name="sessao/[id]" options={{ title: 'Treino realizado' }} />
+        <Stack.Screen name="vitoria/[id]" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="exercicio/[id]" options={{ title: 'Progressão' }} />
         <Stack.Screen name="configuracoes" options={{ title: 'Configurações' }} />
         <Stack.Screen name="editar-perfil" options={{ title: 'Editar perfil' }} />

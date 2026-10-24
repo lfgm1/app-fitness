@@ -448,10 +448,8 @@ export default function LogWorkoutScreen() {
     });
     clearDraft(id);
     clearFlap(id);
-    router.replace({
-      pathname: '/sessao/[id]',
-      params: { id: session.id, novo: '1' },
-    });
+    // Resumo de vitória: confete, números do treino, recordes, semana e XP do Frank.
+    router.replace({ pathname: '/vitoria/[id]', params: { id: session.id } });
   }
 
   return (
