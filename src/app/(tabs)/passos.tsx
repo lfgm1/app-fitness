@@ -6,8 +6,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
 
+import { ProgressRing as Ring } from '@/components/ProgressRing';
 import { StepGoalSheet } from '@/components/StepGoalSheet';
 import { StepsRanking } from '@/components/StepsRanking';
 import { Button, Card, Segmented } from '@/components/ui';
@@ -18,55 +18,6 @@ import { DEFAULT_STEP_GOAL, formatSteps, useSteps } from '@/lib/useSteps';
 import { colors, fonts, hardShadow, outlineColor } from '@/theme';
 
 const WEEKDAY_LETTERS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
-// Verde mais escuro da segunda volta (passos além da meta).
-const EXTRA_LAP = '#7FA81A';
-
-const RING = 220;
-const STROKE = 20;
-const RADIUS = (RING - STROKE) / 2;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-
-/** Círculo de progresso: 0 a 1 é a primeira volta; acima de 1, a segunda volta por cima. */
-function Ring({ progress, children }: { progress: number; children: React.ReactNode }) {
-  const first = Math.min(1, progress);
-  const extra = Math.min(1, Math.max(0, progress - 1));
-  const arc = (p: number) => `${p * CIRCUMFERENCE} ${CIRCUMFERENCE}`;
-  return (
-    <View style={{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={RING} height={RING} style={{ position: 'absolute', top: 0, left: 0 }}>
-        <Circle cx={RING / 2} cy={RING / 2} r={RADIUS} stroke={colors.border} strokeWidth={STROKE} fill="none" />
-        {first > 0 && (
-          <Circle
-            cx={RING / 2}
-            cy={RING / 2}
-            r={RADIUS}
-            stroke={colors.primary}
-            strokeWidth={STROKE}
-            fill="none"
-            strokeLinecap={first < 1 ? 'round' : 'butt'}
-            strokeDasharray={arc(first)}
-            transform={`rotate(-90 ${RING / 2} ${RING / 2})`}
-          />
-        )}
-        {extra > 0 && (
-          <Circle
-            cx={RING / 2}
-            cy={RING / 2}
-            r={RADIUS}
-            stroke={EXTRA_LAP}
-            strokeWidth={STROKE}
-            fill="none"
-            strokeLinecap="round"
-            strokeDasharray={arc(extra)}
-            transform={`rotate(-90 ${RING / 2} ${RING / 2})`}
-          />
-        )}
-      </Svg>
-      {children}
-    </View>
-  );
-}
-
 /** Dias seguidos com a meta batida, contando de hoje para trás (hoje só conta se já bateu). */
 function goalStreak(week: DaySteps[], goal: number) {
   let count = 0;

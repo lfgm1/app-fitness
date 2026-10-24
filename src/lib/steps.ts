@@ -160,11 +160,11 @@ async function stepsOn(daysAgo: number): Promise<number> {
   return result.COUNT_TOTAL ?? 0;
 }
 
-/** Passos de hoje e dos 6 dias anteriores (o mais antigo primeiro). Null se não deu para ler. */
-export async function readWeekSteps(): Promise<DaySteps[] | null> {
+/** Passos de hoje e dos dias anteriores (`count` dias, o mais antigo primeiro). Null se não deu para ler. */
+export async function readWeekSteps(count = 7): Promise<DaySteps[] | null> {
   try {
     if (Platform.OS === 'android') await healthConnect()?.initialize();
-    const days = [6, 5, 4, 3, 2, 1, 0];
+    const days = Array.from({ length: count }, (_, i) => count - 1 - i);
     const counts = await Promise.all(days.map(stepsOn));
     return days.map((d, i) => ({ date: dayRange(d).date, steps: counts[i] }));
   } catch {

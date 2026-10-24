@@ -2,7 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { colors, fonts } from '@/theme';
 
-const UPDATED_AT = '22 de outubro de 2026';
+const UPDATED_AT = '23 de outubro de 2026';
 
 const SECTIONS: { title: string; paragraphs: string[] }[] = [
   {
@@ -10,7 +10,8 @@ const SECTIONS: { title: string; paragraphs: string[] }[] = [
     paragraphs: [
       'Dados da conta: e-mail e senha (a senha é guardada de forma criptografada pelo nosso provedor de autenticação; nós não temos acesso a ela). Se você entrar com o Google, recebemos seu nome e e-mail da sua conta Google.',
       'Dados do perfil: nome, data de nascimento e, se você informar, sexo, altura, peso, nível de experiência, meta diária de passos e preferências do app (unidade de peso e séries padrão).',
-      'Dados de treino: treinos que você monta, exercícios que você cria e os registros de cada treino (data, séries, cargas e repetições).',
+      'Dados de treino: treinos que você monta, exercícios que você cria e os registros de cada treino (data, séries, cargas, repetições e quanto tempo durou, que usamos só para estimar as calorias gastas).',
+      'Dados de alimentação: os alimentos que você registra na aba Calorias (refeição, porção e calorias). Peso, altura, idade e sexo do seu perfil são usados para estimar sua meta de calorias.',
     ],
   },
   {

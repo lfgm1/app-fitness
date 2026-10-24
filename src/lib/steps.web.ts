@@ -18,6 +18,6 @@ export async function openHealthSettings() {}
 
 export function installHealthApp() {}
 
-export async function readWeekSteps(): Promise<DaySteps[] | null> {
+export async function readWeekSteps(_count = 7): Promise<DaySteps[] | null> {
   return null;
 }

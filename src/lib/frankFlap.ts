@@ -14,6 +14,8 @@ const SPEED = 2;
 const GAP = 112;
 const BAR_W = 40;
 const BAR_EVERY = 150;
+// Ao voltar para uma partida pausada, o toque não faz pular: começa uma contagem e o jogo volta sozinho.
+export const RESUME_MS = 3000;
 
 export type Bar = { x: number; gapY: number; passed: boolean };
 
@@ -28,12 +30,24 @@ export type FlapGame = {
   waiting: boolean;
   /** Andou quanto (para o chão "correr"). */
   distance: number;
+  /** Contagem para voltar à partida pausada: até quando (ms); null = sem contagem. */
+  resumeAt: number | null;
 };
 
 const games = new Map<string, FlapGame>();
 
 function newRun(best: number): FlapGame {
-  return { y: FLAP_H / 2, velocity: 0, bars: [], score: 0, best, dead: false, waiting: true, distance: 0 };
+  return {
+    y: FLAP_H / 2,
+    velocity: 0,
+    bars: [],
+    score: 0,
+    best,
+    dead: false,
+    waiting: true,
+    distance: 0,
+    resumeAt: null,
+  };
 }
 
 /** A partida do treino (cria uma nova na primeira vez). */
@@ -55,11 +69,24 @@ export function clearFlap(workoutId: string) {
 export function holdFlap(workoutId: string) {
   const game = getFlap(workoutId);
   if (!game.dead) game.waiting = true;
+  game.resumeAt = null;
 }
 
-/** Toque na tela: o Frank pula (ou recomeça a rodada, se bateu; o recorde do treino fica). */
-export function flap(workoutId: string) {
+/** A partida está pausada no meio (já tinha barras): voltar precisa da contagem. */
+export function isResuming(game: FlapGame) {
+  return game.waiting && !game.dead && game.bars.length > 0;
+}
+
+/**
+ * Toque na tela: o Frank pula (ou recomeça a rodada, se bateu; o recorde do treino fica).
+ * Partida pausada no meio: o toque só começa a contagem de 3 segundos (sem pular).
+ */
+export function flap(workoutId: string, now: number) {
   const game = getFlap(workoutId);
+  if (isResuming(game)) {
+    if (game.resumeAt === null) game.resumeAt = now + RESUME_MS;
+    return;
+  }
   if (game.dead) {
     games.set(workoutId, { ...newRun(game.best), waiting: false, velocity: JUMP });
     return;
@@ -69,7 +96,13 @@ export function flap(workoutId: string) {
 }
 
 /** Avança o jogo. "steps" = quantos quadros de 1/60 s se passaram. */
-export function stepFlap(game: FlapGame, steps: number) {
+export function stepFlap(game: FlapGame, steps: number, now: number) {
+  // Fim da contagem: volta parado no ar (sem pulo), para dar tempo de reagir.
+  if (game.resumeAt !== null && now >= game.resumeAt) {
+    game.resumeAt = null;
+    game.waiting = false;
+    game.velocity = 0;
+  }
   if (game.dead || game.waiting) return;
   game.distance += SPEED * steps;
   game.velocity += GRAVITY * steps;

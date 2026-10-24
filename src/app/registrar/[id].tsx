@@ -36,6 +36,12 @@ const COUNTDOWN_MS = 3000;
 type RunningTimer = { exId: string; index: number; startedAt: number };
 
 /** Hora atual em milissegundos (usada só pelo timer, fora da renderização). */
+// Duração do treino: pausa maior que isso não conta; o tempo da última série; e o mínimo
+// acompanhado para valer (abaixo disso, foi lançado de uma vez, não acompanhado).
+const PAUSE_MS = 15 * 60_000;
+const LAST_SET_MS = 2 * 60_000;
+const MIN_TRACKED_MS = 5 * 60_000;
+
 function clock() {
   return Date.now();
 }
@@ -140,12 +146,36 @@ export default function LogWorkoutScreen() {
     return map;
   }, [exerciseIds, sessions, date]);
 
+  // Duração do treino (não aparece para a pessoa; serve para as calorias): soma o tempo entre uma
+  // alteração e a seguinte, mas pausas de mais de 15 minutos não contam. Assim, quem esquece de
+  // salvar e só volta horas depois não ganha horas de treino.
+  const activity = useRef({
+    activeMs: drafts[id]?.activeMs ?? 0,
+    last: drafts[id]?.lastActivityAt ?? 0,
+    mounted: false,
+  });
+
   // Salva o rascunho automaticamente a cada alteração (não ao editar um treino já registrado).
   useEffect(() => {
     if (isEdit) return;
+    const a = activity.current;
+    // A primeira vez é só a tela abrindo (com o rascunho salvo), não uma alteração.
+    if (a.mounted) {
+      const t = clock();
+      if (a.last && t - a.last <= PAUSE_MS) a.activeMs += t - a.last;
+      a.last = t;
+    }
+    a.mounted = true;
     const hasValues = Object.values(draft).some((sets) => sets.some((s) => s.weight.trim() || s.reps.trim()));
     if (hasValues || daysAgo(date) !== 0 || extraIds.length > 0 || skippedIds.length > 0)
-      saveDraft(id, { date, sets: draft, extraIds, skippedIds });
+      saveDraft(id, {
+        date,
+        sets: draft,
+        extraIds,
+        skippedIds,
+        activeMs: a.activeMs,
+        lastActivityAt: a.last || undefined,
+      });
     else clearDraft(id);
   }, [id, isEdit, draft, date, extraIds, skippedIds, saveDraft, clearDraft]);
 
@@ -405,11 +435,16 @@ export default function LogWorkoutScreen() {
       return;
     }
 
+    // Só guarda a duração de treino feito hoje e acompanhado de verdade (lançado depois não tem).
+    // Soma uma série a mais: o tempo da última série fica depois da última alteração.
+    const activeMin = (activity.current.activeMs + LAST_SET_MS) / 60_000;
+    const durationMin = isToday && activity.current.activeMs >= MIN_TRACKED_MS ? Math.round(activeMin) : undefined;
     const session = addSession({
       workoutId: workout!.id,
       workoutName: workout!.name,
       date: isToday ? new Date().toISOString() : date,
       exercises,
+      durationMin: durationMin && Math.min(durationMin, 300),
     });
     clearDraft(id);
     clearFlap(id);

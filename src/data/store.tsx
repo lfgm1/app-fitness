@@ -54,6 +54,11 @@ export type Session = {
   exercises: SessionExercise[];
   /** Quando foi registrado no app (o servidor confirma). É o que conta para o XP do Frank. */
   createdAt?: string;
+  /**
+   * Minutos de treino ativo (do primeiro ao último preenchimento, sem as pausas longas). Não aparece
+   * para a pessoa: serve para estimar as calorias gastas. Vazio em treinos lançados depois ou antigos.
+   */
+  durationMin?: number;
   updatedAt?: string;
   deleted?: boolean;
 };
@@ -69,6 +74,44 @@ export type Draft = {
   extraIds?: string[];
   /** Exercícios do treino montado que foram pulados neste dia. */
   skippedIds?: string[];
+  /** Tempo ativo até agora (ms) e a hora da última alteração, para a duração do treino. */
+  activeMs?: number;
+  lastActivityAt?: number;
+};
+
+/** Um alimento registrado numa refeição (aba Calorias). Calorias e macros já calculados. */
+export type FoodLog = {
+  id: string;
+  /** Dia da refeição (AAAA-MM-DD, no celular). */
+  day: string;
+  /** Nome da refeição, escolhido pela pessoa ("Almoço", "Pré-treino"...). */
+  meal: string;
+  foodId: number;
+  foodName: string;
+  unit: 'colher' | 'concha' | 'unidade' | 'gramas' | 'ml';
+  quantity: number;
+  grams: number;
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  updatedAt?: string;
+  deleted?: boolean;
+};
+
+/** Um alimento de uma refeição salva (a mesma porção é usada ao adicionar). */
+export type SavedMealItem = Pick<
+  FoodLog,
+  'foodId' | 'foodName' | 'unit' | 'quantity' | 'grams' | 'kcal' | 'protein' | 'carbs' | 'fat'
+>;
+
+/** Refeição salva, para adicionar de uma vez em outro dia. */
+export type SavedMeal = {
+  id: string;
+  name: string;
+  items: SavedMealItem[];
+  updatedAt?: string;
+  deleted?: boolean;
 };
 
 type Data = {
@@ -78,6 +121,8 @@ type Data = {
   workouts: Workout[];
   sessions: Session[];
   blocks: WorkoutBlock[];
+  foodLogs: FoodLog[];
+  savedMeals: SavedMeal[];
   /** Fila de envio: registros alterados no celular que o banco ainda não confirmou. */
   outbox: string[];
   /** Até quando já baixamos as mudanças do banco. */
@@ -95,6 +140,8 @@ const emptyData = (ownerId: string): Data => ({
   workouts: [],
   sessions: [],
   blocks: [],
+  foodLogs: [],
+  savedMeals: [],
   outbox: [],
   lastPulledAt: null,
 });
@@ -111,13 +158,15 @@ export async function clearLocalData() {
 
 // --- Ajudantes para ler e alterar as três coleções de forma genérica ---
 
-type AnyRecord = Exercise | Workout | Session | WorkoutBlock;
+type AnyRecord = Exercise | Workout | Session | WorkoutBlock | FoodLog | SavedMeal;
 
 const COLLECTION = {
   custom_exercises: 'customExercises',
   workouts: 'workouts',
   sessions: 'sessions',
   workout_blocks: 'blocks',
+  food_logs: 'foodLogs',
+  saved_meals: 'savedMeals',
 } as const satisfies Record<TableName, keyof Data>;
 
 function getRecord(data: Data, table: TableName, id: string): AnyRecord | undefined {
@@ -160,6 +209,8 @@ function adoptLocalData(raw: Partial<Data> | null, userId: string): { data: Data
     workouts: stamp(raw.workouts),
     sessions: stamp(raw.sessions),
     blocks: stamp(raw.blocks),
+    foodLogs: stamp(raw.foodLogs),
+    savedMeals: stamp(raw.savedMeals),
     outbox: raw.outbox ?? [],
     lastPulledAt: raw.lastPulledAt ?? null,
   };
@@ -171,6 +222,8 @@ function adoptLocalData(raw: Partial<Data> | null, userId: string): { data: Data
       ...data.workouts.map((r) => outboxKey('workouts', r.id)),
       ...data.sessions.map((r) => outboxKey('sessions', r.id)),
       ...data.blocks.map((r) => outboxKey('workout_blocks', r.id)),
+      ...data.foodLogs.map((r) => outboxKey('food_logs', r.id)),
+      ...data.savedMeals.map((r) => outboxKey('saved_meals', r.id)),
     ];
     data.lastPulledAt = null;
   }
@@ -184,6 +237,9 @@ type Store = {
   workouts: Workout[];
   sessions: Session[];
   blocks: WorkoutBlock[];
+  /** Alimentos registrados (aba Calorias). */
+  foodLogs: FoodLog[];
+  savedMeals: SavedMeal[];
   drafts: Record<string, Draft>;
   syncNow: () => Promise<void>;
   /** Quantas alterações ainda não chegaram ao banco (valor atualizado na hora). */
@@ -204,6 +260,12 @@ type Store = {
   deleteAllSessions: () => void;
   saveDraft: (workoutId: string, draft: Draft) => void;
   clearDraft: (workoutId: string) => void;
+  addFoodLog: (log: Omit<FoodLog, 'id'>) => FoodLog;
+  updateFoodLog: (id: string, changes: Partial<Omit<FoodLog, 'id'>>) => void;
+  deleteFoodLog: (id: string) => void;
+  /** Salva uma refeição para usar em outros dias (se já existe uma com o mesmo nome, substitui). */
+  saveMeal: (name: string, items: SavedMealItem[]) => SavedMeal;
+  deleteSavedMeal: (id: string) => void;
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -373,6 +435,8 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
     const workouts = data.workouts.filter((w) => !w.deleted);
     const sessions = data.sessions.filter((s) => !s.deleted);
     const blocks = data.blocks.filter((b) => !b.deleted);
+    const foodLogs = data.foodLogs.filter((l) => !l.deleted);
+    const savedMeals = data.savedMeals.filter((m) => !m.deleted);
 
     return {
       loaded,
@@ -381,6 +445,8 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       workouts,
       sessions,
       blocks,
+      foodLogs,
+      savedMeals,
       drafts,
       syncNow,
       pendingNow: () => dataRef.current.outbox.length,
@@ -467,6 +533,37 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
 
       saveDraft,
       clearDraft,
+
+      addFoodLog: (log) => {
+        const saved: FoodLog = { ...log, id: newId() };
+        commit('food_logs', saved);
+        return saved;
+      },
+
+      updateFoodLog: (id, changes) => {
+        const existing = dataRef.current.foodLogs.find((l) => l.id === id);
+        if (existing) commit('food_logs', { ...existing, ...changes });
+      },
+
+      deleteFoodLog: (id) => {
+        const existing = dataRef.current.foodLogs.find((l) => l.id === id);
+        if (existing) commit('food_logs', { ...existing, deleted: true });
+      },
+
+      saveMeal: (name, items) => {
+        const clean = name.trim();
+        const existing = dataRef.current.savedMeals.find(
+          (m) => !m.deleted && m.name.toLowerCase() === clean.toLowerCase()
+        );
+        const meal: SavedMeal = existing ? { ...existing, name: clean, items } : { id: newId(), name: clean, items };
+        commit('saved_meals', meal);
+        return meal;
+      },
+
+      deleteSavedMeal: (id) => {
+        const existing = dataRef.current.savedMeals.find((m) => m.id === id);
+        if (existing) commit('saved_meals', { ...existing, deleted: true });
+      },
     };
   }, [data, drafts, loaded, syncNow, commit, update, scheduleSync, saveDraft, clearDraft]);
 

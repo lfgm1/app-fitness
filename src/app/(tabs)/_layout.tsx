@@ -1,9 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs, router } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import { Pressable } from 'react-native';
 
+import { FloatingTabBar } from '@/components/FloatingTabBar';
 import { Logo } from '@/components/Logo';
-import { colors, fonts, outlineColor, outlineWidth } from '@/theme';
+import { colors, fonts } from '@/theme';
 
 function SettingsButton() {
   return (
@@ -17,14 +18,11 @@ function SettingsButton() {
   );
 }
 
-// No navegador (site / app instalado pela tela de início) a barra de abas tem altura fixa e
-// cortava o nome das abas (ícone 28 + nome 16 + margens 10 = 54 de espaço útil); aqui ela ganha
-// altura própria. No app nativo a navegação calcula sozinha.
-const webTabBar = Platform.OS === 'web' ? { height: 64, paddingTop: 2, paddingBottom: 4 } : null;
-
 export default function TabsLayout() {
   return (
     <Tabs
+      // Barra flutuante em pílula, só com ícones (src/components/FloatingTabBar.tsx).
+      tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
@@ -32,15 +30,6 @@ export default function TabsLayout() {
         headerShadowVisible: false,
         headerRight: () => <SettingsButton />,
         sceneStyle: { backgroundColor: colors.background },
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: outlineColor,
-          borderTopWidth: outlineWidth,
-          ...webTabBar,
-        },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textFaint,
-        tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 12, lineHeight: 16 },
       }}>
       <Tabs.Screen
         name="index"
@@ -63,6 +52,13 @@ export default function TabsLayout() {
         options={{
           title: 'Passos',
           tabBarIcon: ({ color, size }) => <Ionicons name="footsteps" size={size} color={color as string} />,
+        }}
+      />
+      <Tabs.Screen
+        name="calorias"
+        options={{
+          title: 'Calorias',
+          tabBarIcon: ({ color, size }) => <Ionicons name="restaurant" size={size} color={color as string} />,
         }}
       />
       <Tabs.Screen

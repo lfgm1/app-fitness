@@ -5,10 +5,14 @@ import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Ellipse, G, Path, Rect, Text as SvgText } from 'react-native-svg';
 
-import { FLAP_H, FLAP_LAYOUT, FLAP_W, GROUND, flap, getFlap, holdFlap, stepFlap } from '@/lib/frankFlap';
+import { FLAP_H, FLAP_LAYOUT, FLAP_W, GROUND, flap, getFlap, holdFlap, isResuming, stepFlap } from '@/lib/frankFlap';
 import { colors, fonts, outlineColor } from '@/theme';
 
 const { FRANK_X, GAP, BAR_W } = FLAP_LAYOUT;
+
+function clock() {
+  return Date.now();
+}
 
 type Props = { workoutId: string; playing: boolean; width: number };
 
@@ -26,7 +30,7 @@ export function FrankFlap({ workoutId, playing, width }: Props) {
       // No máximo 3 quadros de uma vez (se o celular travar um pouco, o Frank não "teleporta").
       const steps = last ? Math.min(3, (time - last) / (1000 / 60)) : 1;
       last = time;
-      stepFlap(getFlap(workoutId), steps);
+      stepFlap(getFlap(workoutId), steps, clock());
       setFrame((f) => f + 1);
       raf = requestAnimationFrame(tick);
     };
@@ -36,13 +40,20 @@ export function FrankFlap({ workoutId, playing, width }: Props) {
 
   function onTap() {
     if (!playing) return;
-    flap(workoutId);
+    flap(workoutId, clock());
     setFrame((f) => f + 1);
   }
 
   const height = (width * FLAP_H) / FLAP_W;
   const tilt = Math.max(-28, Math.min(55, game.velocity * 6));
   const groundShift = -(game.distance % 24);
+  // Contagem para voltar à partida pausada (3, 2, 1).
+  const countdown = game.resumeAt !== null ? Math.max(1, Math.ceil((game.resumeAt - clock()) / 1000)) : null;
+  const hint = game.dead
+    ? 'Bateu! Toque para recomeçar'
+    : isResuming(game)
+      ? 'Toque para continuar'
+      : 'Toque para voar';
 
   return (
     <View style={[styles.box, { width, height }]}>
@@ -102,9 +113,14 @@ export function FrankFlap({ workoutId, playing, width }: Props) {
           {`recorde ${game.best}`}
         </SvgText>
       </Svg>
-      {playing && (game.waiting || game.dead) && (
+      {playing && countdown !== null && (
         <View style={styles.hint} pointerEvents="none">
-          <Text style={styles.hintText}>{game.dead ? 'Bateu! Toque para recomeçar' : 'Toque para voar'}</Text>
+          <Text style={styles.countdown}>{countdown}</Text>
+        </View>
+      )}
+      {playing && countdown === null && (game.waiting || game.dead) && (
+        <View style={styles.hint} pointerEvents="none">
+          <Text style={styles.hintText}>{hint}</Text>
         </View>
       )}
       {/* Camada invisível por cima do desenho que recebe os toques. No navegador ela escuta o toque
@@ -127,6 +143,14 @@ const styles = StyleSheet.create({
   touch: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   box: { borderRadius: 12, overflow: 'hidden', borderWidth: 2.5, borderColor: outlineColor },
   hint: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  countdown: {
+    color: colors.primary,
+    fontFamily: fonts.display,
+    fontSize: 72,
+    textShadowColor: 'rgba(14,15,18,0.9)',
+    textShadowOffset: { width: 3, height: 3 },
+    textShadowRadius: 0,
+  },
   hintText: {
     color: colors.text,
     fontFamily: fonts.bold,

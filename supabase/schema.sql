@@ -257,3 +257,9 @@ $$;
 drop trigger if exists sessions_created_at on public.sessions;
 create trigger sessions_created_at before insert or update on public.sessions
   for each row execute function private.session_created_at();
+
+-- ---------- Duração do treino (para estimar as calorias) ----------
+-- Minutos de treino ativo, medidos no registrar treino (pausas longas não contam).
+-- Não aparece para a pessoa. Vazio em treinos lançados depois e nos antigos.
+alter table public.sessions add column if not exists duration_min integer
+  check (duration_min is null or duration_min between 1 and 300);

@@ -8,16 +8,18 @@
 // Se a internet cair no meio, nada se perde: a fila continua guardada.
 
 import type { Exercise, MuscleGroup } from './exercises';
-import type { Session, Workout, WorkoutBlock } from './store';
+import type { FoodLog, SavedMeal, Session, Workout, WorkoutBlock } from './store';
 import { supabase } from '@/lib/supabase';
 
-export type TableName = 'custom_exercises' | 'workouts' | 'sessions' | 'workout_blocks';
+export type TableName = 'custom_exercises' | 'workouts' | 'sessions' | 'workout_blocks' | 'food_logs' | 'saved_meals';
 
 export type SyncRecord =
   | { table: 'custom_exercises'; record: Exercise }
   | { table: 'workouts'; record: Workout }
   | { table: 'sessions'; record: Session }
-  | { table: 'workout_blocks'; record: WorkoutBlock };
+  | { table: 'workout_blocks'; record: WorkoutBlock }
+  | { table: 'food_logs'; record: FoodLog }
+  | { table: 'saved_meals'; record: SavedMeal };
 
 export const outboxKey = (table: TableName, id: string) => `${table}:${id}`;
 
@@ -27,7 +29,7 @@ export function parseOutboxKey(key: string) {
 }
 
 const PAGE_SIZE = 1000;
-const TABLES: TableName[] = ['custom_exercises', 'workouts', 'sessions', 'workout_blocks'];
+const TABLES: TableName[] = ['custom_exercises', 'workouts', 'sessions', 'workout_blocks', 'food_logs', 'saved_meals'];
 
 const iso = (value: string) => new Date(value).toISOString();
 
@@ -59,6 +61,7 @@ function toRow(item: SyncRecord, userId: string) {
         workout_name: item.record.workoutName,
         date: item.record.date,
         exercises: item.record.exercises,
+        duration_min: item.record.durationMin ?? null,
         deleted,
       };
     case 'workout_blocks':
@@ -69,6 +72,31 @@ function toRow(item: SyncRecord, userId: string) {
         emoji: item.record.emoji,
         workout_ids: item.record.workoutIds,
         created_at: item.record.createdAt,
+        deleted,
+      };
+    case 'food_logs':
+      return {
+        user_id: userId,
+        id: item.record.id,
+        day: item.record.day,
+        meal: item.record.meal,
+        food_id: item.record.foodId,
+        food_name: item.record.foodName,
+        unit: item.record.unit,
+        quantity: item.record.quantity,
+        grams: item.record.grams,
+        kcal: item.record.kcal,
+        protein: item.record.protein,
+        carbs: item.record.carbs,
+        fat: item.record.fat,
+        deleted,
+      };
+    case 'saved_meals':
+      return {
+        user_id: userId,
+        id: item.record.id,
+        name: item.record.name,
+        items: item.record.items,
         deleted,
       };
   }
@@ -97,6 +125,7 @@ function fromRow(table: TableName, row: any): SyncRecord {
           date: iso(row.date),
           createdAt: row.created_at ? iso(row.created_at) : undefined,
           exercises: row.exercises ?? [],
+          durationMin: row.duration_min ?? undefined,
         },
       };
     case 'workout_blocks':
@@ -110,6 +139,26 @@ function fromRow(table: TableName, row: any): SyncRecord {
           createdAt: iso(row.created_at),
         },
       };
+    case 'food_logs':
+      return {
+        table,
+        record: {
+          ...base,
+          day: String(row.day).slice(0, 10),
+          meal: row.meal,
+          foodId: row.food_id,
+          foodName: row.food_name,
+          unit: row.unit,
+          quantity: Number(row.quantity),
+          grams: Number(row.grams),
+          kcal: Number(row.kcal),
+          protein: Number(row.protein),
+          carbs: Number(row.carbs),
+          fat: Number(row.fat),
+        },
+      };
+    case 'saved_meals':
+      return { table, record: { ...base, name: row.name, items: row.items ?? [] } };
   }
 }
 

@@ -25,7 +25,7 @@ export function Avatar({ name, icon, size = 44, streakWeeks = 0 }: Props) {
   );
 }
 
-function AvatarCircle({ name, icon, size }: { name?: string; icon?: string | null; size: number }) {
+export function AvatarCircle({ name, icon, size }: { name?: string; icon?: string | null; size: number }) {
   const chosen = findAvatarIcon(icon);
   if (chosen) {
     // Recorta em círculo: nada do desenho aparece fora da borda.
