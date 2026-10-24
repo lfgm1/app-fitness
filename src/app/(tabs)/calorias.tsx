@@ -146,10 +146,11 @@ export default function CaloriesScreen() {
   // A refeição do menu de opções continua guardada enquanto a janela fecha (para o texto não sumir).
   const [menuMeal, setMenuMeal] = useState('');
   if (options !== null && options !== menuMeal) setMenuMeal(options);
-  // Refeições minimizadas (só o nome e as calorias), por dia: "2026-10-24|Almoço".
-  const [collapsed, setCollapsed] = useState<string[]>([]);
+  // Refeições abertas (por dia: "2026-10-24|Almoço"). Começam todas minimizadas (nome e calorias);
+  // tocando no nome, abre a lista de alimentos.
+  const [expanded, setExpanded] = useState<string[]>([]);
   const toggleMeal = (key: string) =>
-    setCollapsed((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+    setExpanded((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   // Refeições criadas e ainda sem alimento (só aparecem até a pessoa sair da aba).
   const [emptyMeals, setEmptyMeals] = useState<{ day: string; name: string }[]>([]);
   const [info, setInfo] = useState(false);
@@ -195,6 +196,8 @@ export default function CaloriesScreen() {
 
   function createMeal(name: string) {
     setNewMeal(false);
+    // A refeição nova já aparece aberta.
+    setExpanded((prev) => [...prev, `${day}|${name}`]);
     if (!meals.includes(name)) setEmptyMeals((prev) => [...prev, { day, name }]);
     setSheet({ meal: name, editing: null });
   }
@@ -377,7 +380,7 @@ export default function CaloriesScreen() {
       {meals.map((meal) => {
         const items = mealItems(meal);
         const kcal = items.reduce((sum, l) => sum + l.kcal, 0);
-        const closed = collapsed.includes(`${day}|${meal}`);
+        const closed = !expanded.includes(`${day}|${meal}`);
         return (
           <Card key={meal} style={styles.meal}>
             <View style={styles.mealTop}>
